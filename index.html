@@ -98,6 +98,11 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .group-list{display:flex;flex-direction:column;gap:2px}
 .group-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:default}
 .group-row:hover{background:var(--surface2)}
+.group-row.active{background:var(--surface2)}
+.group-filter-bar{display:flex;align-items:center;gap:6px;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.group-filter-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;border:1px solid var(--border2);background:none;color:var(--text2);flex-shrink:0}
+.group-filter-chip.active{border-color:transparent;color:#fff}
+.group-filter-chip:hover{opacity:.85}
 .group-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .group-name{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .group-badge{font-size:10px;color:var(--text3);padding:1px 6px;background:var(--surface2);border-radius:10px}
@@ -285,6 +290,7 @@ let groups = [];
 let currentUser = null;
 let unsubEvents = null;
 let unsubGroups = null;
+let selectedGroupId = null; // null = 全グループ表示
 
 const COLORS = [
   {bg:'#E6F1FB',text:'#185FA5',dot:'#378ADD'},
@@ -370,13 +376,22 @@ function renderAll(){ renderSidebar(); renderMiniCal(); renderCal() }
 function renderSidebar(){
   const gl=document.getElementById('group-list');
   gl.innerHTML='';
+  // 「すべて」行
+  const allRow=document.createElement('div');
+  allRow.className='group-row'+(selectedGroupId===null?' active':'');
+  allRow.style.cursor='pointer';
+  allRow.innerHTML=`<div class="group-dot" style="background:var(--text3)"></div><span class="group-name">すべて</span><span class="group-badge">${events.length}</span>`;
+  allRow.addEventListener('click',()=>{ selectedGroupId=null; renderAll() });
+  gl.appendChild(allRow);
   groups.forEach(g=>{
     const c=COLORS[g.colorIdx||0];
     const cnt=events.filter(e=>e.groupId===g.id).length;
     const row=document.createElement('div');
-    row.className='group-row';
+    row.className='group-row'+(selectedGroupId===g.id?' active':'');
+    row.style.cursor='pointer';
     row.innerHTML=`<div class="group-dot" style="background:${c.dot}"></div><span class="group-name">${g.name}</span><span class="group-badge">${cnt}</span><button class="btn-icon-sm" title="共有" data-gid="${g.id}">⇪</button>`;
     row.querySelector('button').addEventListener('click',e=>{e.stopPropagation();openShare(g.id)});
+    row.addEventListener('click',()=>{ selectedGroupId=g.id; renderAll() });
     gl.appendChild(row);
   });
 }
@@ -394,18 +409,57 @@ function renderMiniCal(){
     el.className='mc-day';
     if(d.getMonth()!==cur.getMonth()) el.classList.add('other');
     if(isSameDay(d,today)) el.classList.add('today');
-    if(events.some(e=>e.date===dateStr(d))) el.classList.add('has-ev');
+    if(filteredEvents().some(e=>e.date===dateStr(d))) el.classList.add('has-ev');
     el.textContent=d.getDate();
     el.addEventListener('click',()=>{ cur=new Date(d.getFullYear(),d.getMonth(),1); renderAll() });
     grid.appendChild(el);
   }
 }
 
+function filteredEvents(){
+  if(selectedGroupId===null) return events;
+  return events.filter(e=>e.groupId===selectedGroupId);
+}
+
+function renderFilterBar(){
+  // inject filter bar between toolbar and cal-grid if not present
+  const calMain=document.querySelector('.cal-main');
+  let bar=document.getElementById('group-filter-bar');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='group-filter-bar';
+    bar.className='group-filter-bar';
+    const toolbar=calMain.querySelector('.toolbar');
+    toolbar.after(bar);
+  }
+  bar.innerHTML='';
+  // 「すべて」chip
+  const allChip=document.createElement('button');
+  allChip.className='group-filter-chip'+(selectedGroupId===null?' active':'');
+  allChip.style.background=selectedGroupId===null?'#888780':'';
+  allChip.textContent='すべて';
+  allChip.addEventListener('click',()=>{ selectedGroupId=null; renderAll() });
+  bar.appendChild(allChip);
+  groups.forEach(g=>{
+    const c=COLORS[g.colorIdx||0];
+    const chip=document.createElement('button');
+    chip.className='group-filter-chip'+(selectedGroupId===g.id?' active':'');
+    chip.style.background=selectedGroupId===g.id?c.dot:'';
+    chip.style.borderColor=selectedGroupId===g.id?'transparent':c.dot;
+    chip.style.color=selectedGroupId===g.id?'#fff':c.text;
+    chip.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:${c.dot};flex-shrink:0;${selectedGroupId===g.id?'background:#fff':''}"></span>${g.name}`;
+    chip.addEventListener('click',()=>{ selectedGroupId=g.id; renderAll() });
+    bar.appendChild(chip);
+  });
+}
+
 function renderCal(){
   const title=document.getElementById('cal-title');
   const grid=document.getElementById('cal-grid');
+  renderFilterBar();
+  const label=selectedGroupId?groups.find(g=>g.id===selectedGroupId)?.name||'':'すべて';
   if(view==='month'){
-    title.textContent=cur.getFullYear()+'年 '+MONTHS_JP[cur.getMonth()];
+    title.textContent=cur.getFullYear()+'年 '+MONTHS_JP[cur.getMonth()]+(selectedGroupId?'  —  '+label:'');
     renderMonth(grid);
   } else if(view==='week'){
     renderWeek(grid, cur);
@@ -435,7 +489,7 @@ function renderMonth(grid){
     if(isSameDay(d,today)) cell.classList.add('today-cell');
     const num=document.createElement('div'); num.className='cell-day-num'; num.textContent=d.getDate();
     cell.appendChild(num);
-    const dayEvs=events.filter(e=>e.date===ds);
+    const dayEvs=filteredEvents().filter(e=>e.date===ds);
     dayEvs.slice(0,3).forEach(ev=>{
       const g=groups.find(g=>g.id===ev.groupId);
       const c=COLORS[(g?.colorIdx)||0];
@@ -474,7 +528,7 @@ function renderWeek(grid, baseDate){
           <div class="week-time-col">${[...Array(24)].map((_,h)=>`<div class="week-time-label">${h}:00</div>`).join('')}</div>
           ${days.map(d=>{
             const ds=dateStr(d);
-            const dayEvs=events.filter(e=>e.date===ds&&e.startTime);
+            const dayEvs=filteredEvents().filter(e=>e.date===ds&&e.startTime);
             return `<div class="week-col" style="flex:1;position:relative;min-height:${24*48}px">
               ${[...Array(24)].map((_,h)=>`<div class="hour-line" style="top:${h*48}px"></div>`).join('')}
               ${isSameDay(d,today)?`<div class="now-line" style="top:${(today.getHours()*60+today.getMinutes())/60*48}px"></div>`:''}
@@ -499,7 +553,7 @@ function renderDay(grid, baseDate){
     `${baseDate.getFullYear()}年${baseDate.getMonth()+1}月${baseDate.getDate()}日（${DAYS_SHORT[baseDate.getDay()]}）`;
   cur=new Date(baseDate);
   const ds=dateStr(baseDate);
-  const dayEvs=events.filter(e=>e.date===ds);
+  const dayEvs=filteredEvents().filter(e=>e.date===ds);
   grid.innerHTML=`
     <div style="display:flex;flex:1;overflow:hidden">
       <div style="display:flex;flex-direction:column;flex:1">
