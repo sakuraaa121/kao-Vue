@@ -17,7 +17,7 @@
 <script>
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyDZUJkxVawXPymYNlQQoTqg0NfXBShCHTA",
-  authDomain:        "kao-vue.firebaseapp.com",
+  authDomain:        "sakuraaa121.github.io",
   projectId:         "kao-vue",
   storageBucket:     "kao-vue.firebasestorage.app",
   messagingSenderId: "1002392250215",
@@ -274,7 +274,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, getDocs, getDoc, Timestamp, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp(FIREBASE_CONFIG);
@@ -333,17 +333,28 @@ onAuthStateChanged(auth, user => {
   }
 });
 
+// リダイレクト結果を先にチェック（iOSリダイレクト後の処理）
+getRedirectResult(auth).catch(()=>{});
+
 document.getElementById('auth-btn').addEventListener('click', async()=>{
   const btn=document.getElementById('auth-btn');
   btn.disabled=true;
+  btn.textContent='サインイン中...';
   try{
     await signInWithPopup(auth, provider);
   }catch(e){
-    const msg = e.code==='auth/popup-blocked'
-      ? 'ポップアップがブロックされました。ブラウザの設定でポップアップを許可してください。'
-      : e.message;
-    document.getElementById('auth-feedback').innerHTML=`<div class="auth-err">${msg}</div>`;
-    btn.disabled=false;
+    // ポップアップがブロックされた場合はリダイレクト方式にフォールバック
+    if(e.code==='auth/popup-blocked'||e.code==='auth/popup-cancelled-by-user'||e.code==='auth/cancelled-popup-request'){
+      try{
+        await signInWithRedirect(auth, provider);
+      }catch(e2){
+        document.getElementById('auth-feedback').innerHTML=`<div class="auth-err">${e2.message}</div>`;
+        btn.disabled=false; btn.textContent='Googleでサインイン';
+      }
+    } else {
+      document.getElementById('auth-feedback').innerHTML=`<div class="auth-err">${e.message}</div>`;
+      btn.disabled=false; btn.textContent='Googleでサインイン';
+    }
   }
 });
 
