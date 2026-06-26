@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Calendar">
+<meta name="theme-color" content="#378ADD">
+<title>Calendar</title>
+
+<!-- ========================================================
+  🔧 FIREBASE SETUP — あなたの設定値に書き換えてください
+  Firebase Console → プロジェクト設定 → アプリを追加(Web) → SDK設定
+  https://console.firebase.google.com/
+======================================================== -->
+<script>
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDZUJkxVawXPymYNlQQoTqg0NfXBShCHTA",
+  authDomain:        "kao-vue.firebaseapp.com",
+  projectId:         "kao-vue",
+  storageBucket:     "kao-vue.firebasestorage.app",
+  messagingSenderId: "1002392250215",
+  appId:             "1:1002392250215:web:4899fc8d88dd9f9becf1c2"
+};
+// Firestoreのリージョン（東京: "asia-northeast1", デフォルト: 不要）
+const FIRESTORE_REGION = null;
+</script>
+<!-- ======================================================== -->
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --blue:#378ADD;--blue-light:#E6F1FB;--blue-dark:#185FA5;
+  --green:#1D9E75;--green-light:#E1F5EE;
+  --amber:#BA7517;--amber-light:#FAEEDA;
+  --coral:#D85A30;--coral-light:#FAECE7;
+  --purple:#534AB7;--purple-light:#EEEDFE;
+  --bg:#F8F8F7;--surface:#FFFFFF;--surface2:#F3F2EF;
+  --text:#1A1A18;--text2:#6B6B67;--text3:#A0A09A;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);
+  --radius:10px;--shadow:0 1px 3px rgba(0,0,0,0.08),0 4px 16px rgba(0,0,0,0.06);
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0F0F0E;--surface:#1C1C1A;--surface2:#252522;
+  --text:#F0EFE8;--text2:#9B9B95;--text3:#6B6B67;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+  --blue-light:#0D2845;--green-light:#062B1F;--amber-light:#2B1D00;
+  --coral-light:#2B0E04;--purple-light:#16134A;
+}}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--text);font-size:16px}
+#app{height:100%;display:flex;flex-direction:column}
+
+/* ── Auth Screen ── */
+#auth-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:24px}
+.auth-logo{width:56px;height:56px;background:var(--blue);border-radius:16px;display:flex;align-items:center;justify-content:center}
+.auth-logo svg{fill:#fff;width:28px;height:28px}
+.auth-title{font-size:24px;font-weight:600;letter-spacing:-.5px}
+.auth-sub{font-size:14px;color:var(--text2);text-align:center;max-width:280px;line-height:1.6}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
+.auth-card input{font-size:15px;padding:12px 14px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--surface2);color:var(--text);width:100%;outline:none}
+.auth-card input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(55,138,221,.15)}
+.btn-primary{padding:13px;font-size:15px;font-weight:500;background:var(--blue);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;width:100%;transition:opacity .15s}
+.btn-primary:hover{opacity:.88}
+.btn-primary:disabled{opacity:.5;cursor:default}
+.auth-note{font-size:12px;color:var(--text3);text-align:center;line-height:1.6}
+.auth-msg{font-size:14px;color:var(--green);text-align:center;padding:10px;background:var(--green-light);border-radius:var(--radius)}
+.auth-err{font-size:14px;color:var(--coral);text-align:center;padding:10px;background:var(--coral-light);border-radius:var(--radius)}
+
+/* ── Main Layout ── */
+#main-screen{flex:1;display:grid;grid-template-columns:220px 1fr;height:100%;overflow:hidden}
+@media(max-width:680px){#main-screen{grid-template-columns:1fr;grid-template-rows:auto 1fr}}
+
+/* ── Sidebar ── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px;gap:16px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:680px){.sidebar{display:none}}
+.sidebar.open{display:flex;position:fixed;inset:0;z-index:50;width:280px;box-shadow:4px 0 24px rgba(0,0,0,.15)}
+.sidebar-header{display:flex;align-items:center;justify-content:space-between}
+.sidebar-title{font-size:17px;font-weight:600}
+.btn-icon{background:none;border:none;cursor:pointer;color:var(--text2);padding:6px;border-radius:8px;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center}
+.btn-icon:hover{background:var(--surface2)}
+.user-pill{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--radius)}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:var(--blue-light);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--blue-dark);flex-shrink:0}
+.user-email{font-size:12px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.section-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.mini-cal .mc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.mini-cal .mc-label{font-size:13px;font-weight:500}
+.mc-nav{background:none;border:none;cursor:pointer;color:var(--text2);padding:2px 7px;border-radius:5px;font-size:15px}
+.mc-nav:hover{background:var(--surface2)}
+.mc-grid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;gap:1px}
+.mc-dow{font-size:10px;color:var(--text3);padding:2px 0}
+.mc-day{font-size:11px;padding:3px 0;border-radius:4px;cursor:pointer;color:var(--text2);position:relative}
+.mc-day:hover{background:var(--surface2)}
+.mc-day.today{background:var(--blue);color:#fff;font-weight:600}
+.mc-day.other{opacity:.3}
+.mc-day.has-ev::after{content:'';display:block;width:3px;height:3px;border-radius:50%;background:var(--blue);margin:1px auto 0}
+.mc-day.today.has-ev::after{background:#fff}
+.group-list{display:flex;flex-direction:column;gap:2px}
+.group-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:default}
+.group-row:hover{background:var(--surface2)}
+.group-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.group-name{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.group-badge{font-size:10px;color:var(--text3);padding:1px 6px;background:var(--surface2);border-radius:10px}
+.btn-icon-sm{background:none;border:none;cursor:pointer;color:var(--text3);padding:3px 5px;border-radius:5px;font-size:13px}
+.btn-icon-sm:hover{color:var(--text2);background:var(--surface2)}
+.btn-new-group{display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:8px;border:1px dashed var(--border2);background:none;cursor:pointer;font-size:12px;color:var(--text2);width:100%;margin-top:4px}
+.btn-new-group:hover{background:var(--surface2)}
+.btn-signout{display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:8px;border:none;background:none;cursor:pointer;font-size:12px;color:var(--text3);width:100%;margin-top:auto}
+.btn-signout:hover{color:var(--coral);background:var(--coral-light)}
+
+/* ── Main Calendar ── */
+.cal-main{display:flex;flex-direction:column;overflow:hidden}
+.toolbar{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.toolbar-left{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.cal-title{font-size:15px;font-weight:600;white-space:nowrap}
+.btn-today{padding:5px 11px;font-size:12px;border:1px solid var(--border2);border-radius:7px;background:none;cursor:pointer;color:var(--text2)}
+.btn-today:hover{background:var(--surface2)}
+.btn-nav{background:none;border:none;cursor:pointer;color:var(--text2);padding:4px 8px;border-radius:6px;font-size:16px}
+.btn-nav:hover{background:var(--surface2)}
+.view-tabs{display:flex;border:1px solid var(--border2);border-radius:8px;overflow:hidden;flex-shrink:0}
+.view-tab{padding:5px 11px;font-size:12px;background:none;border:none;cursor:pointer;color:var(--text2);font-weight:500}
+.view-tab.active{background:var(--surface2);color:var(--text)}
+.btn-add{display:flex;align-items:center;gap:4px;padding:7px 13px;font-size:13px;font-weight:500;background:var(--blue);color:#fff;border:none;border-radius:8px;cursor:pointer;flex-shrink:0}
+.btn-add:hover{opacity:.88}
+.btn-hamburger{display:none}
+@media(max-width:680px){.btn-hamburger{display:flex}}
+
+/* ── Month View ── */
+.cal-grid{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.dow-header{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--border);flex-shrink:0}
+.dow-header span{font-size:11px;color:var(--text3);text-align:center;padding:5px 0;font-weight:500}
+.month-body{flex:1;display:grid;grid-template-columns:repeat(7,1fr);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.cal-cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:5px 6px;min-height:80px;cursor:pointer;transition:background .1s}
+.cal-cell:nth-child(7n){border-right:none}
+.cal-cell:hover{background:var(--surface2)}
+.cal-cell.today-cell{background:var(--blue-light)}
+.cal-cell.other-month .cell-day-num{color:var(--text3);opacity:.5}
+.cell-day-num{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:3px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.today-cell .cell-day-num{background:var(--blue);color:#fff;font-weight:700}
+.ev-chip{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:500}
+.ev-chip:hover{opacity:.8}
+.ev-more{font-size:10px;color:var(--text3);padding:1px 4px}
+
+/* ── Week/Day View ── */
+.week-grid{flex:1;display:grid;overflow:hidden}
+.week-header{display:grid;border-bottom:1px solid var(--border);flex-shrink:0}
+.week-header-cell{text-align:center;padding:6px 2px;font-size:11px;color:var(--text2)}
+.week-header-cell .wh-day{font-size:18px;font-weight:600;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 2px}
+.week-header-cell.today-col .wh-day{background:var(--blue);color:#fff}
+.week-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:grid;position:relative}
+.week-time-col{width:44px;flex-shrink:0;border-right:1px solid var(--border)}
+.week-time-label{height:48px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:10px;color:var(--text3)}
+.week-col{position:relative;border-right:1px solid var(--border)}
+.week-col:last-child{border-right:none}
+.hour-line{position:absolute;left:0;right:0;border-top:1px solid var(--border);height:48px}
+.week-ev{position:absolute;left:2px;right:2px;border-radius:4px;padding:2px 5px;font-size:10px;font-weight:500;cursor:pointer;overflow:hidden}
+.week-ev:hover{opacity:.85}
+.now-line{position:absolute;left:0;right:0;border-top:2px solid var(--coral);z-index:5}
+.now-line::before{content:'';position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:var(--coral)}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center;z-index:100;padding:0}
+@media(min-width:500px){.overlay{align-items:center;padding:16px}}
+.sheet{background:var(--surface);border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:14px}
+@media(min-width:500px){.sheet{border-radius:16px;max-height:80vh}}
+.sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto -4px}
+.sheet h3{font-size:17px;font-weight:600}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;color:var(--text2);font-weight:500}
+.field input,.field select,.field textarea{font-size:14px;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--surface2);color:var(--text);width:100%;outline:none;-webkit-appearance:none}
+.field input:focus,.field select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(55,138,221,.15)}
+.color-swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:transform .1s}
+.swatch.sel{border-color:var(--text);transform:scale(1.1)}
+.sheet-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.btn-cancel{padding:9px 16px;font-size:14px;border:1px solid var(--border2);border-radius:var(--radius);background:none;cursor:pointer;color:var(--text2)}
+.btn-save{padding:9px 18px;font-size:14px;font-weight:500;background:var(--blue);color:#fff;border:none;border-radius:var(--radius);cursor:pointer}
+.btn-del{padding:9px 14px;font-size:14px;border:1px solid var(--coral-light);border-radius:var(--radius);background:none;cursor:pointer;color:var(--coral)}
+.share-link-row{display:flex;gap:6px}
+.share-link-row input{flex:1;font-size:12px;padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text2)}
+.btn-copy{padding:9px 13px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);background:none;cursor:pointer;color:var(--text2);white-space:nowrap}
+.btn-copy:hover{background:var(--surface2)}
+.member-list{display:flex;flex-direction:column;gap:8px;max-height:140px;overflow-y:auto}
+.member-row{display:flex;align-items:center;gap:8px;font-size:13px}
+.member-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.badge-owner{font-size:10px;color:var(--text3);margin-left:auto}
+.invite-row{display:flex;gap:6px}
+.invite-row input{flex:1}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:20px;font-size:13px;z-index:200;pointer-events:none;opacity:0;transition:opacity .2s}
+.toast.show{opacity:1}
+
+/* ── Loading ── */
+.loading{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text3);font-size:14px}
+.spinner{width:28px;height:28px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="loading" id="loading-screen">
+    <div class="spinner"></div>
+    <span>読み込み中...</span>
+  </div>
+  <div id="auth-screen" style="display:none">
+    <div class="auth-logo">
+      <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H5V8h14v13zM7 10h5v5H7z"/></svg>
+    </div>
+    <div class="auth-title">Calendar</div>
+    <div class="auth-sub">メールアドレスでサインイン。Mac・iOSどちらでも同じカレンダーが使えます。</div>
+    <div class="auth-card" id="auth-card">
+      <input type="email" id="auth-email" placeholder="メールアドレス" autocomplete="email" />
+      <button class="btn-primary" id="auth-btn">ログインリンクを送信</button>
+      <div id="auth-feedback"></div>
+    </div>
+    <div class="auth-note">リンクをクリックするだけでログイン完了。<br>パスワードは不要です。</div>
+  </div>
+  <div id="main-screen" style="display:none">
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">📅 Calendar</div>
+        <div class="sync-dot" title="リアルタイム同期中"></div>
+      </div>
+      <div class="user-pill">
+        <div class="user-avatar" id="user-av"></div>
+        <div class="user-email" id="user-email-disp"></div>
+      </div>
+      <div class="mini-cal">
+        <div class="mc-header">
+          <button class="mc-nav" id="mc-prev">‹</button>
+          <span class="mc-label" id="mc-label"></span>
+          <button class="mc-nav" id="mc-next">›</button>
+        </div>
+        <div class="mc-grid" id="mc-grid"></div>
+      </div>
+      <div>
+        <div class="section-label">グループ</div>
+        <div class="group-list" id="group-list"></div>
+        <button class="btn-new-group" id="btn-new-group">+ グループを作成</button>
+      </div>
+      <button class="btn-signout" id="btn-signout">サインアウト</button>
+    </div>
+    <div class="cal-main">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <button class="btn-icon btn-hamburger" id="btn-ham">☰</button>
+          <button class="btn-nav" id="btn-prev">‹</button>
+          <button class="btn-today" id="btn-today">今日</button>
+          <button class="btn-nav" id="btn-next">›</button>
+          <span class="cal-title" id="cal-title"></span>
+        </div>
+        <div class="view-tabs">
+          <button class="view-tab active" data-view="month">月</button>
+          <button class="view-tab" data-view="week">週</button>
+          <button class="view-tab" data-view="day">日</button>
+        </div>
+        <button class="btn-add" id="btn-add">＋ 追加</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, getDocs, getDoc, Timestamp, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const app = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ── State ──
+const today = new Date();
+let cur = new Date(today.getFullYear(), today.getMonth(), 1);
+let view = 'month';
+let events = [];
+let groups = [];
+let currentUser = null;
+let unsubEvents = null;
+let unsubGroups = null;
+
+const COLORS = [
+  {bg:'#E6F1FB',text:'#185FA5',dot:'#378ADD'},
+  {bg:'#E1F5EE',text:'#0F6E56',dot:'#1D9E75'},
+  {bg:'#FAEEDA',text:'#854F0B',dot:'#BA7517'},
+  {bg:'#FAECE7',text:'#993C1D',dot:'#D85A30'},
+  {bg:'#EEEDFE',text:'#3C3489',dot:'#534AB7'},
+];
+const DAYS_SHORT = ['日','月','火','水','木','金','土'];
+const MONTHS_JP = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+function uid(){ return Math.random().toString(36).slice(2) }
+function dateStr(d){ return d.toISOString().slice(0,10) }
+function parseDate(s){ const [y,m,d]=s.split('-'); return new Date(+y,+m-1,+d) }
+function isSameDay(a,b){ return dateStr(a)===dateStr(b) }
+function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200) }
+function closeModal(){ document.querySelector('.overlay')?.remove() }
+function openOverlay(html){ closeModal(); const d=document.createElement('div');d.className='overlay';d.innerHTML=html;d.addEventListener('click',e=>{if(e.target===d)closeModal()});document.body.appendChild(d);return d }
+
+// ── Auth ──
+const EMAIL_KEY = 'cal_signin_email';
+
+onAuthStateChanged(auth, user => {
+  document.getElementById('loading-screen').style.display='none';
+  if(user){
+    currentUser=user;
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('main-screen').style.display='grid';
+    const initials=(user.email||'?').slice(0,2).toUpperCase();
+    document.getElementById('user-av').textContent=initials;
+    document.getElementById('user-email-disp').textContent=user.email||'';
+    subscribeData();
+    renderAll();
+  } else {
+    currentUser=null;
+    document.getElementById('auth-screen').style.display='flex';
+    document.getElementById('main-screen').style.display='none';
+    if(unsubEvents){unsubEvents();unsubEvents=null}
+    if(unsubGroups){unsubGroups();unsubGroups=null}
+  }
+});
+
+// handle magic link redirect
+if(isSignInWithEmailLink(auth, window.location.href)){
+  let email = localStorage.getItem(EMAIL_KEY);
+  if(!email) email = window.prompt('メールアドレスを確認のため入力してください');
+  signInWithEmailLink(auth, email, window.location.href)
+    .then(()=>{ localStorage.removeItem(EMAIL_KEY); window.history.replaceState({},'','/') })
+    .catch(()=>{ document.getElementById('auth-feedback').innerHTML='<div class="auth-err">リンクが無効か期限切れです</div>' });
+}
+
+document.getElementById('auth-btn').addEventListener('click', async()=>{
+  const email=document.getElementById('auth-email').value.trim();
+  if(!email){ document.getElementById('auth-feedback').innerHTML='<div class="auth-err">メールアドレスを入力してください</div>'; return }
+  const btn=document.getElementById('auth-btn');
+  btn.disabled=true; btn.textContent='送信中...';
+  try{
+    await sendSignInLinkToEmail(auth, email, {
+      url: window.location.href,
+      handleCodeInApp: true
+    });
+    localStorage.setItem(EMAIL_KEY, email);
+    document.getElementById('auth-feedback').innerHTML='<div class="auth-msg">📨 ログインリンクを送信しました。メールを確認してください。</div>';
+  }catch(e){
+    document.getElementById('auth-feedback').innerHTML=`<div class="auth-err">${e.message}</div>`;
+    btn.disabled=false; btn.textContent='ログインリンクを送信';
+  }
+});
+
+document.getElementById('btn-signout').addEventListener('click',()=>{ signOut(auth) });
+
+// ── Firestore subscriptions ──
+function subscribeData(){
+  if(!currentUser) return;
+
+  // Events: own + groups the user belongs to
+  if(unsubEvents){ unsubEvents() }
+  const evQ = query(collection(db,'events'), where('members','array-contains', currentUser.uid), orderBy('date'));
+  unsubEvents = onSnapshot(evQ, snap=>{
+    events = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderAll();
+  }, err=>console.warn('events',err));
+
+  // Groups
+  if(unsubGroups){ unsubGroups() }
+  const grQ = query(collection(db,'groups'), where('members','array-contains', currentUser.uid));
+  unsubGroups = onSnapshot(grQ, snap=>{
+    groups = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderAll();
+  }, err=>console.warn('groups',err));
+}
+
+// ── Render ──
+function renderAll(){ renderSidebar(); renderMiniCal(); renderCal() }
+
+function renderSidebar(){
+  const gl=document.getElementById('group-list');
+  gl.innerHTML='';
+  groups.forEach(g=>{
+    const c=COLORS[g.colorIdx||0];
+    const cnt=events.filter(e=>e.groupId===g.id).length;
+    const row=document.createElement('div');
+    row.className='group-row';
+    row.innerHTML=`<div class="group-dot" style="background:${c.dot}"></div><span class="group-name">${g.name}</span><span class="group-badge">${cnt}</span><button class="btn-icon-sm" title="共有" data-gid="${g.id}">⇪</button>`;
+    row.querySelector('button').addEventListener('click',e=>{e.stopPropagation();openShare(g.id)});
+    gl.appendChild(row);
+  });
+}
+
+function renderMiniCal(){
+  document.getElementById('mc-label').textContent=cur.getFullYear()+'年 '+MONTHS_JP[cur.getMonth()];
+  const grid=document.getElementById('mc-grid');
+  grid.innerHTML='';
+  DAYS_SHORT.forEach(d=>{const s=document.createElement('div');s.className='mc-dow';s.textContent=d;grid.appendChild(s)});
+  const first=new Date(cur.getFullYear(),cur.getMonth(),1);
+  let start=new Date(first); start.setDate(start.getDate()-start.getDay());
+  for(let i=0;i<35;i++){
+    const d=new Date(start); d.setDate(d.getDate()+i);
+    const el=document.createElement('div');
+    el.className='mc-day';
+    if(d.getMonth()!==cur.getMonth()) el.classList.add('other');
+    if(isSameDay(d,today)) el.classList.add('today');
+    if(events.some(e=>e.date===dateStr(d))) el.classList.add('has-ev');
+    el.textContent=d.getDate();
+    el.addEventListener('click',()=>{ cur=new Date(d.getFullYear(),d.getMonth(),1); renderAll() });
+    grid.appendChild(el);
+  }
+}
+
+function renderCal(){
+  const title=document.getElementById('cal-title');
+  const grid=document.getElementById('cal-grid');
+  if(view==='month'){
+    title.textContent=cur.getFullYear()+'年 '+MONTHS_JP[cur.getMonth()];
+    renderMonth(grid);
+  } else if(view==='week'){
+    renderWeek(grid, cur);
+  } else {
+    renderDay(grid, cur);
+  }
+}
+
+function renderMonth(grid){
+  const first=new Date(cur.getFullYear(),cur.getMonth(),1);
+  const lastDay=new Date(cur.getFullYear(),cur.getMonth()+1,0).getDate();
+  const startOffset=first.getDay();
+  const cellCount=(startOffset+lastDay)>35?42:35;
+
+  grid.innerHTML=`
+    <div class="dow-header">${DAYS_SHORT.map(d=>`<span>${d}</span>`).join('')}</div>
+    <div class="month-body" id="month-body" style="grid-template-rows:repeat(${cellCount/7},1fr)"></div>`;
+  const body=document.getElementById('month-body');
+
+  let start=new Date(first); start.setDate(start.getDate()-start.getDay());
+  for(let i=0;i<cellCount;i++){
+    const d=new Date(start); d.setDate(d.getDate()+i);
+    const ds=dateStr(d);
+    const cell=document.createElement('div');
+    cell.className='cal-cell';
+    if(d.getMonth()!==cur.getMonth()) cell.classList.add('other-month');
+    if(isSameDay(d,today)) cell.classList.add('today-cell');
+    const num=document.createElement('div'); num.className='cell-day-num'; num.textContent=d.getDate();
+    cell.appendChild(num);
+    const dayEvs=events.filter(e=>e.date===ds);
+    dayEvs.slice(0,3).forEach(ev=>{
+      const g=groups.find(g=>g.id===ev.groupId);
+      const c=COLORS[(g?.colorIdx)||0];
+      const chip=document.createElement('div');
+      chip.className='ev-chip';
+      chip.style.background=c.bg; chip.style.color=c.text;
+      chip.textContent=ev.title;
+      chip.addEventListener('click',e=>{e.stopPropagation();openEditEvent(ev)});
+      cell.appendChild(chip);
+    });
+    if(dayEvs.length>3){
+      const more=document.createElement('div'); more.className='ev-more'; more.textContent=`+${dayEvs.length-3}件`;
+      cell.appendChild(more);
+    }
+    cell.addEventListener('click',()=>openAddEvent(d));
+    body.appendChild(cell);
+  }
+}
+
+function renderWeek(grid, baseDate){
+  const startOfWeek=new Date(baseDate);
+  startOfWeek.setDate(startOfWeek.getDate()-startOfWeek.getDay());
+  const days=[...Array(7)].map((_,i)=>{ const d=new Date(startOfWeek);d.setDate(d.getDate()+i);return d });
+  document.getElementById('cal-title').textContent=
+    `${days[0].getMonth()+1}月${days[0].getDate()}日 〜 ${days[6].getMonth()+1}月${days[6].getDate()}日`;
+
+  grid.innerHTML=`
+    <div style="display:flex;flex:1;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+        <div class="week-header" style="display:grid;grid-template-columns:44px repeat(7,1fr)">
+          <div></div>${days.map(d=>`<div class="week-header-cell${isSameDay(d,today)?' today-col':''}">
+            <div class="wh-day">${d.getDate()}</div><div style="font-size:10px;color:var(--text3)">${DAYS_SHORT[d.getDay()]}</div>
+          </div>`).join('')}
+        </div>
+        <div style="display:flex;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch" id="week-scroll">
+          <div class="week-time-col">${[...Array(24)].map((_,h)=>`<div class="week-time-label">${h}:00</div>`).join('')}</div>
+          ${days.map(d=>{
+            const ds=dateStr(d);
+            const dayEvs=events.filter(e=>e.date===ds&&e.startTime);
+            return `<div class="week-col" style="flex:1;position:relative;min-height:${24*48}px">
+              ${[...Array(24)].map((_,h)=>`<div class="hour-line" style="top:${h*48}px"></div>`).join('')}
+              ${isSameDay(d,today)?`<div class="now-line" style="top:${(today.getHours()*60+today.getMinutes())/60*48}px"></div>`:''}
+              ${dayEvs.map(ev=>{
+                const [sh,sm]=(ev.startTime||'00:00').split(':').map(Number);
+                const [eh,em]=(ev.endTime||ev.startTime||'01:00').split(':').map(Number);
+                const top=(sh*60+sm)/60*48; const height=Math.max(((eh*60+em)-(sh*60+sm))/60*48,20);
+                const g=groups.find(g=>g.id===ev.groupId); const c=COLORS[(g?.colorIdx)||0];
+                return `<div class="week-ev" style="top:${top}px;height:${height}px;background:${c.bg};color:${c.text}" onclick="window._editEv('${ev.id}')">${ev.title}</div>`;
+              }).join('')}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+  // scroll to 8am
+  setTimeout(()=>{ const s=document.getElementById('week-scroll'); if(s) s.scrollTop=8*48 },50);
+}
+
+function renderDay(grid, baseDate){
+  document.getElementById('cal-title').textContent=
+    `${baseDate.getFullYear()}年${baseDate.getMonth()+1}月${baseDate.getDate()}日（${DAYS_SHORT[baseDate.getDay()]}）`;
+  cur=new Date(baseDate);
+  const ds=dateStr(baseDate);
+  const dayEvs=events.filter(e=>e.date===ds);
+  grid.innerHTML=`
+    <div style="display:flex;flex:1;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:1">
+        <div style="display:flex;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch" id="day-scroll">
+          <div class="week-time-col">${[...Array(24)].map((_,h)=>`<div class="week-time-label">${h}:00</div>`).join('')}</div>
+          <div style="flex:1;position:relative;min-height:${24*48}px">
+            ${[...Array(24)].map((_,h)=>`<div class="hour-line" style="top:${h*48}px"></div>`).join('')}
+            ${isSameDay(baseDate,today)?`<div class="now-line" style="top:${(today.getHours()*60+today.getMinutes())/60*48}px"></div>`:''}
+            ${dayEvs.filter(e=>e.startTime).map(ev=>{
+              const [sh,sm]=(ev.startTime||'00:00').split(':').map(Number);
+              const [eh,em]=(ev.endTime||ev.startTime||'01:00').split(':').map(Number);
+              const top=(sh*60+sm)/60*48; const height=Math.max(((eh*60+em)-(sh*60+sm))/60*48,20);
+              const g=groups.find(g=>g.id===ev.groupId); const c=COLORS[(g?.colorIdx)||0];
+              return `<div class="week-ev" style="top:${top}px;height:${height}px;background:${c.bg};color:${c.text}" onclick="window._editEv('${ev.id}')">${ev.title}</div>`;
+            }).join('')}
+          </div>
+        </div>
+        ${dayEvs.filter(e=>!e.startTime).length?`<div style="padding:10px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">終日</div>
+          ${dayEvs.filter(e=>!e.startTime).map(ev=>{const g=groups.find(g=>g.id===ev.groupId);const c=COLORS[(g?.colorIdx)||0];return `<div class="ev-chip" style="background:${c.bg};color:${c.text};font-size:12px;padding:5px 9px;border-radius:6px;margin-bottom:4px;cursor:pointer" onclick="window._editEv('${ev.id}')">${ev.title}</div>`;}).join('')}
+        </div>`:''}
+      </div>
+    </div>`;
+  setTimeout(()=>{ const s=document.getElementById('day-scroll'); if(s) s.scrollTop=8*48 },50);
+}
+
+// global for inline onclick
+window._editEv = (id)=>{ const ev=events.find(e=>e.id===id); if(ev) openEditEvent(ev) };
+
+// ── Event CRUD ──
+function groupOptions(selId){
+  if(!groups.length) return `<option value="">（グループなし）</option>`;
+  return groups.map(g=>`<option value="${g.id}"${g.id===selId?' selected':''}>${g.name}</option>`).join('');
+}
+
+function openAddEvent(d){
+  const date=d?dateStr(d):dateStr(today);
+  const ov=openOverlay(`
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3>イベントを追加</h3>
+      <div class="field"><label>タイトル</label><input id="ev-title" placeholder="例：ゼミ発表" /></div>
+      <div class="field"><label>日付</label><input id="ev-date" type="date" value="${date}" /></div>
+      <div class="field"><label>開始時刻（任意）</label><input id="ev-start" type="time" /></div>
+      <div class="field"><label>終了時刻（任意）</label><input id="ev-end" type="time" /></div>
+      <div class="field"><label>グループ</label><select id="ev-group">${groupOptions('')}</select></div>
+      <div class="field"><label>メモ</label><textarea id="ev-memo" rows="2" placeholder="任意"></textarea></div>
+      <div class="sheet-actions">
+        <button class="btn-cancel" id="s-cancel">キャンセル</button>
+        <button class="btn-save" id="s-save">保存</button>
+      </div>
+    </div>`);
+  ov.querySelector('#s-cancel').addEventListener('click',closeModal);
+  ov.querySelector('#s-save').addEventListener('click',()=>saveNewEvent());
+  setTimeout(()=>ov.querySelector('#ev-title').focus(),100);
+}
+
+async function saveNewEvent(){
+  if(!currentUser) return;
+  const title=document.getElementById('ev-title').value.trim();
+  const date=document.getElementById('ev-date').value;
+  const startTime=document.getElementById('ev-start').value||null;
+  const endTime=document.getElementById('ev-end').value||null;
+  const groupId=document.getElementById('ev-group').value||null;
+  const memo=document.getElementById('ev-memo').value.trim()||null;
+  if(!title||!date){ showToast('タイトルと日付は必須です'); return }
+
+  // members array: always include current user, plus group members
+  let members=[currentUser.uid];
+  if(groupId){
+    const g=groups.find(g=>g.id===groupId);
+    if(g?.members) members=[...new Set([...members,...g.members])];
+  }
+
+  try{
+    await addDoc(collection(db,'events'),{
+      title,date,startTime,endTime,groupId,memo,members,
+      ownerId:currentUser.uid,
+      createdAt:serverTimestamp()
+    });
+    closeModal(); showToast('イベントを追加しました');
+  }catch(e){ showToast('保存に失敗しました: '+e.message) }
+}
+
+function openEditEvent(ev){
+  const ov=openOverlay(`
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3>イベントを編集</h3>
+      <div class="field"><label>タイトル</label><input id="ev-title" value="${ev.title||''}" /></div>
+      <div class="field"><label>日付</label><input id="ev-date" type="date" value="${ev.date||''}" /></div>
+      <div class="field"><label>開始時刻</label><input id="ev-start" type="time" value="${ev.startTime||''}" /></div>
+      <div class="field"><label>終了時刻</label><input id="ev-end" type="time" value="${ev.endTime||''}" /></div>
+      <div class="field"><label>グループ</label><select id="ev-group">${groupOptions(ev.groupId)}</select></div>
+      <div class="field"><label>メモ</label><textarea id="ev-memo" rows="2">${ev.memo||''}</textarea></div>
+      <div class="sheet-actions">
+        ${ev.ownerId===currentUser?.uid?`<button class="btn-del" id="s-del">削除</button>`:''}
+        <button class="btn-cancel" id="s-cancel">キャンセル</button>
+        <button class="btn-save" id="s-save">保存</button>
+      </div>
+    </div>`);
+  ov.querySelector('#s-cancel').addEventListener('click',closeModal);
+  ov.querySelector('#s-save').addEventListener('click',()=>saveEditEvent(ev.id));
+  ov.querySelector('#s-del')?.addEventListener('click',()=>deleteEvent(ev.id));
+}
+
+async function saveEditEvent(id){
+  if(!currentUser) return;
+  const title=document.getElementById('ev-title').value.trim();
+  const date=document.getElementById('ev-date').value;
+  const startTime=document.getElementById('ev-start').value||null;
+  const endTime=document.getElementById('ev-end').value||null;
+  const groupId=document.getElementById('ev-group').value||null;
+  const memo=document.getElementById('ev-memo').value.trim()||null;
+  if(!title||!date){ showToast('タイトルと日付は必須です'); return }
+  let members=[currentUser.uid];
+  if(groupId){ const g=groups.find(g=>g.id===groupId); if(g?.members) members=[...new Set([...members,...g.members])] }
+  try{
+    await updateDoc(doc(db,'events',id),{title,date,startTime,endTime,groupId,memo,members});
+    closeModal(); showToast('更新しました');
+  }catch(e){ showToast('更新に失敗しました') }
+}
+
+async function deleteEvent(id){
+  if(!confirm('このイベントを削除しますか？')) return;
+  try{ await deleteDoc(doc(db,'events',id)); closeModal(); showToast('削除しました') }
+  catch(e){ showToast('削除に失敗しました') }
+}
+
+// ── Group CRUD ──
+function openNewGroup(){
+  let selColor=0;
+  const ov=openOverlay(`
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3>グループを作成</h3>
+      <div class="field"><label>グループ名</label><input id="grp-name" placeholder="例：研究室" /></div>
+      <div class="field"><label>カラー</label>
+        <div class="color-swatches" id="swatches">
+          ${COLORS.map((c,i)=>`<div class="swatch${i===0?' sel':''}" data-i="${i}" style="background:${c.dot}"></div>`).join('')}
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn-cancel" id="s-cancel">キャンセル</button>
+        <button class="btn-save" id="s-save">作成</button>
+      </div>
+    </div>`);
+  ov.querySelector('#s-cancel').addEventListener('click',closeModal);
+  ov.querySelectorAll('.swatch').forEach(sw=>sw.addEventListener('click',()=>{
+    selColor=+sw.dataset.i;
+    ov.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('sel',+s.dataset.i===selColor));
+  }));
+  ov.querySelector('#s-save').addEventListener('click',async()=>{
+    const name=ov.querySelector('#grp-name').value.trim();
+    if(!name){ showToast('名前を入力してください'); return }
+    if(!currentUser) return;
+    try{
+      await addDoc(collection(db,'groups'),{
+        name, colorIdx:selColor,
+        ownerId:currentUser.uid,
+        members:[currentUser.uid],
+        createdAt:serverTimestamp()
+      });
+      closeModal(); showToast('グループを作成しました');
+    }catch(e){ showToast('作成に失敗しました: '+e.message) }
+  });
+  setTimeout(()=>ov.querySelector('#grp-name').focus(),100);
+}
+
+// ── Share ──
+async function openShare(gid){
+  const g=groups.find(g=>g.id===gid); if(!g) return;
+  const link=`${location.origin}${location.pathname}?join=${gid}`;
+  const c=COLORS[g.colorIdx||0];
+
+  // fetch member emails (best-effort via Firestore users collection if you set it up)
+  const memberDisplay=g.members.map(uid=>{
+    const isMe=uid===currentUser?.uid;
+    return `<div class="member-row">
+      <div class="member-av" style="background:${c.bg};color:${c.text}">${isMe?'You':'?'}</div>
+      <span>${isMe?currentUser.email:uid}</span>
+      ${uid===g.ownerId?'<span class="badge-owner">オーナー</span>':''}
+    </div>`;
+  }).join('');
+
+  openOverlay(`
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3>「${g.name}」を共有</h3>
+      <div class="field">
+        <label>招待リンク</label>
+        <div class="share-link-row">
+          <input value="${link}" readonly id="share-link" />
+          <button class="btn-copy" id="btn-copy-link">コピー</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">このリンクを送るとグループに参加できます</div>
+      </div>
+      <div class="field">
+        <label>メンバー (${g.members.length}人)</label>
+        <div class="member-list">${memberDisplay}</div>
+      </div>
+      <div class="field">
+        <label>メールで招待</label>
+        <div class="invite-row">
+          <input id="invite-email" placeholder="相手のメールアドレス" type="email" class="field input" style="font-size:14px;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--surface2);color:var(--text);width:100%;outline:none" />
+          <button class="btn-save" id="btn-invite" style="padding:11px 14px;white-space:nowrap">招待</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">※招待される方もこのアプリにサインイン済みである必要があります</div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn-cancel" id="s-close">閉じる</button>
+      </div>
+    </div>`);
+  document.getElementById('s-close').addEventListener('click',closeModal);
+  document.getElementById('btn-copy-link').addEventListener('click',()=>{
+    navigator.clipboard.writeText(link).then(()=>showToast('リンクをコピーしました')).catch(()=>showToast('コピーできませんでした'));
+  });
+  document.getElementById('btn-invite').addEventListener('click',async()=>{
+    const email=document.getElementById('invite-email').value.trim();
+    if(!email){ showToast('メールアドレスを入力してください'); return }
+    // Look up user by email in /users collection (requires you to write user doc on sign-in)
+    // For now, store invite in /invites collection
+    try{
+      await addDoc(collection(db,'invites'),{
+        groupId:gid, invitedEmail:email,
+        invitedBy:currentUser.uid, invitedByEmail:currentUser.email,
+        createdAt:serverTimestamp()
+      });
+      showToast(`${email} に招待を送りました`);
+      document.getElementById('invite-email').value='';
+    }catch(e){ showToast('招待に失敗しました') }
+  });
+}
+
+// ── Handle join link ──
+async function handleJoinLink(){
+  const params=new URLSearchParams(location.search);
+  const gid=params.get('join');
+  if(!gid||!currentUser) return;
+  try{
+    const gref=doc(db,'groups',gid);
+    const gsnap=await getDoc(gref);
+    if(!gsnap.exists()){ showToast('グループが見つかりません'); return }
+    const gdata=gsnap.data();
+    if(!gdata.members.includes(currentUser.uid)){
+      await updateDoc(gref,{members:[...gdata.members,currentUser.uid]});
+      showToast('グループに参加しました！');
+    } else {
+      showToast('すでにグループのメンバーです');
+    }
+    window.history.replaceState({},'',location.pathname);
+  }catch(e){ showToast('参加に失敗しました: '+e.message) }
+}
+
+// ── Toolbar controls ──
+document.getElementById('btn-prev').addEventListener('click',()=>{
+  if(view==='month'){ cur.setMonth(cur.getMonth()-1) }
+  else if(view==='week'){ cur.setDate(cur.getDate()-7) }
+  else { cur.setDate(cur.getDate()-1) }
+  renderAll();
+});
+document.getElementById('btn-next').addEventListener('click',()=>{
+  if(view==='month'){ cur.setMonth(cur.getMonth()+1) }
+  else if(view==='week'){ cur.setDate(cur.getDate()+7) }
+  else { cur.setDate(cur.getDate()+1) }
+  renderAll();
+});
+document.getElementById('btn-today').addEventListener('click',()=>{ cur=new Date(today.getFullYear(),today.getMonth(),1); renderAll() });
+document.getElementById('btn-add').addEventListener('click',()=>openAddEvent(null));
+document.getElementById('btn-new-group').addEventListener('click',()=>openNewGroup());
+document.getElementById('mc-prev').addEventListener('click',()=>{ cur.setMonth(cur.getMonth()-1); renderAll() });
+document.getElementById('mc-next').addEventListener('click',()=>{ cur.setMonth(cur.getMonth()+1); renderAll() });
+document.querySelectorAll('.view-tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.view-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    view=btn.dataset.view;
+    if(view==='week'||view==='day') cur=new Date(today);
+    renderCal();
+  });
+});
+const ham=document.getElementById('btn-ham');
+const sidebar=document.getElementById('sidebar');
+ham?.addEventListener('click',()=>sidebar.classList.toggle('open'));
+document.addEventListener('click',e=>{ if(!sidebar.contains(e.target)&&e.target!==ham) sidebar.classList.remove('open') });
+
+// init join-link check after auth
+const origSubscribe=subscribeData;
+subscribeData = function(){
+  origSubscribe();
+  setTimeout(handleJoinLink,1000);
+};
+</script>
+</body>
+</html>
