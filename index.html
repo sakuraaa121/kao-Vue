@@ -303,7 +303,7 @@ const DAYS_SHORT = ['日','月','火','水','木','金','土'];
 const MONTHS_JP = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
 function uid(){ return Math.random().toString(36).slice(2) }
-function dateStr(d){ return d.toISOString().slice(0,10) }
+function dateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 function parseDate(s){ const [y,m,d]=s.split('-'); return new Date(+y,+m-1,+d) }
 function isSameDay(a,b){ return dateStr(a)===dateStr(b) }
 function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200) }
@@ -389,8 +389,10 @@ function renderSidebar(){
     const row=document.createElement('div');
     row.className='group-row'+(selectedGroupId===g.id?' active':'');
     row.style.cursor='pointer';
-    row.innerHTML=`<div class="group-dot" style="background:${c.dot}"></div><span class="group-name">${g.name}</span><span class="group-badge">${cnt}</span><button class="btn-icon-sm" title="共有" data-gid="${g.id}">⇪</button>`;
-    row.querySelector('button').addEventListener('click',e=>{e.stopPropagation();openShare(g.id)});
+    const isOwner=g.ownerId===currentUser?.uid;
+    row.innerHTML=`<div class="group-dot" style="background:${c.dot}"></div><span class="group-name">${g.name}</span><span class="group-badge">${cnt}</span><button class="btn-icon-sm" title="共有" data-share="${g.id}">⇪</button>${isOwner?`<button class="btn-icon-sm" title="削除" data-del="${g.id}" style="color:var(--coral)">✕</button>`:''}`;
+    row.querySelector('[data-share]').addEventListener('click',e=>{e.stopPropagation();openShare(g.id)});
+    row.querySelector('[data-del]')?.addEventListener('click',e=>{e.stopPropagation();confirmDeleteGroup(g.id,g.name)});
     row.addEventListener('click',()=>{ selectedGroupId=g.id; renderAll() });
     gl.appendChild(row);
   });
@@ -786,6 +788,31 @@ async function openShare(gid){
       document.getElementById('invite-email').value='';
     }catch(e){ showToast('招待に失敗しました') }
   });
+}
+
+// ── Delete Group ──
+function confirmDeleteGroup(gid, gname){
+  openOverlay(`
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3>グループを削除</h3>
+      <p style="font-size:14px;color:var(--text2);line-height:1.6">「${gname}」を削除しますか？<br>グループ内のイベントは削除されません。</p>
+      <div class="sheet-actions">
+        <button class="btn-cancel" id="s-cancel">キャンセル</button>
+        <button class="btn-del" id="s-del">削除する</button>
+      </div>
+    </div>`);
+  document.getElementById('s-cancel').addEventListener('click', closeModal);
+  document.getElementById('s-del').addEventListener('click', ()=>deleteGroup(gid));
+}
+
+async function deleteGroup(gid){
+  try{
+    await deleteDoc(doc(db,'groups',gid));
+    if(selectedGroupId===gid) selectedGroupId=null;
+    closeModal();
+    showToast('グループを削除しました');
+  }catch(e){ showToast('削除に失敗しました: '+e.message) }
 }
 
 // ── Handle join link ──
