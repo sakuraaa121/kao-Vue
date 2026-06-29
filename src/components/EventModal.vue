@@ -1,6 +1,6 @@
 <template>
-  <div class="overlay" @click.self="$emit('close')">
-    <div class="sheet">
+  <div class="overlay" @mousedown.self="$emit('close')">
+    <div class="sheet" @click.stop>
       <div class="sheet-handle"></div>
       <h3>{{ event ? 'イベントを編集' : 'イベントを追加' }}</h3>
 
@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { reactive, watch } from 'vue'
 import { groups } from '../stores/calendar'
 
 const props = defineProps({
@@ -54,7 +54,7 @@ const emit = defineEmits(['close', 'save', 'delete'])
 
 const isOwner = props.event?.ownerId === props.user?.uid
 
-const form = ref({
+const form = reactive({
   title: '',
   date: props.defaultDate || '',
   startTime: '',
@@ -65,20 +65,18 @@ const form = ref({
 
 watch(() => props.event, ev => {
   if (ev) {
-    form.value = {
-      title: ev.title || '',
-      date: ev.date || '',
-      startTime: ev.startTime || '',
-      endTime: ev.endTime || '',
-      groupId: ev.groupId || '',
-      memo: ev.memo || ''
-    }
+    form.title = ev.title || ''
+    form.date = ev.date || ''
+    form.startTime = ev.startTime || ''
+    form.endTime = ev.endTime || ''
+    form.groupId = ev.groupId || ''
+    form.memo = ev.memo || ''
   }
 }, { immediate: true })
 
 function submit() {
-  if (!form.value.title || !form.value.date) return
-  emit('save', { ...form.value, id: props.event?.id, gcalEventId: props.event?.gcalEventId })
+  if (!form.title || !form.date) return
+  emit('save', { ...form, id: props.event?.id, gcalEventId: props.event?.gcalEventId })
 }
 </script>
 
