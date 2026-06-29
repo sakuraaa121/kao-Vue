@@ -169,6 +169,7 @@ function openEditEvent(ev) {
 }
 
 async function saveEvent(form) {
+  console.log('saveEvent called:', form)
   try {
     if (form.id) {
       await updateEvent(form.id, form, user.value.uid)
@@ -178,6 +179,7 @@ async function saveEvent(form) {
     showEventModal.value = false
     showToast(form.id ? '更新しました' : 'イベントを追加しました')
   } catch (e) {
+    console.error('saveEvent error:', e)
     showToast('保存に失敗しました: ' + e.message)
   }
 }

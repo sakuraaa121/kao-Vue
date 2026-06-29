@@ -42,7 +42,7 @@ export function subscribeData(uid) {
   )
   unsubEvents = onSnapshot(evQ, snap => {
     events.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-  })
+  }, err => console.error('events error:', err))
 
   const grQ = query(
     collection(db, 'groups'),
@@ -50,7 +50,7 @@ export function subscribeData(uid) {
   )
   unsubGroups = onSnapshot(grQ, snap => {
     groups.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-  })
+  }, err => console.error('groups error:', err))
 }
 
 export function unsubscribeData() {
@@ -65,8 +65,10 @@ export async function addEvent(data, uid) {
     const g = groups.value.find(g => g.id === data.groupId)
     if (g?.members) members = [...new Set([...members, ...g.members])]
   }
+  // id, gcalEventId など undefined のフィールドを除去
+  const { id, gcalEventId, ...cleanData } = data
   const docRef = await addDoc(collection(db, 'events'), {
-    ...data, members, ownerId: uid, createdAt: serverTimestamp()
+    ...cleanData, members, ownerId: uid, createdAt: serverTimestamp()
   })
   return docRef.id
 }
