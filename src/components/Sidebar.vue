@@ -1,7 +1,7 @@
 <template>
   <div class="sidebar">
     <div class="sidebar-header">
-      <span class="sidebar-title">📅 Calendar</span>
+      <span class="sidebar-title">📅 僕らのCalendar</span>
       <div class="sync-dot" title="リアルタイム同期中"></div>
     </div>
 
@@ -30,42 +30,60 @@
     </div>
 
     <!-- グループ -->
-    <div>
-      <div class="section-label">グループ</div>
-      <div class="group-list">
-        <div :class="['group-row', { active: selectedGroupId === null }]" @click="selectedGroupId = null">
-          <div class="group-dot" style="background:#aaa"></div>
-          <span class="group-name">すべて</span>
-          <span class="group-badge">{{ events.length }}</span>
-        </div>
-        <div
-          v-for="g in groups"
-          :key="g.id"
-          :class="['group-row', { active: selectedGroupId === g.id }]"
-          @click="selectedGroupId = g.id"
-        >
-          <div class="group-dot" :style="{ background: COLORS[g.colorIdx||0].dot }"></div>
-          <span class="group-name">{{ g.name }}</span>
-          <span class="group-badge">{{ events.filter(e => e.groupId === g.id).length }}</span>
-          <button class="btn-sm" @click.stop="$emit('share', g.id)">⇪</button>
-          <button v-if="g.ownerId === user?.uid" class="btn-sm danger" @click.stop="$emit('delete-group', g.id, g.name)">✕</button>
+<!-- グループ -->
+<div>
+  <div class="section-label">グループ</div>
+  <div class="group-list">
+    <div :class="['group-row', { active: selectedGroupId === null }]" @click="selectedGroupId = null">
+      <div class="group-dot" style="background:#aaa"></div>
+      <span class="group-name">すべて</span>
+      <span class="group-badge">{{ events.length }}</span>
+    </div>
+    <div
+      v-for="g in groups"
+      :key="g.id"
+      :class="['group-row', { active: selectedGroupId === g.id }]"
+      @click="selectedGroupId = g.id"
+    >
+      <div class="group-dot" :style="{ background: COLORS[g.colorIdx||0].dot }"></div>
+      <span class="group-name">{{ g.name }}</span>
+      <div class="group-menu">
+        <button class="btn-sm" @click.stop="toggleMenu(g.id)">⋯</button>
+        <div v-if="openMenuId === g.id" class="dropdown" @click.stop>
+          <div class="dropdown-item" @click="$emit('share', g.id); openMenuId = null">⇪ 共有</div>
+          <div v-if="g.ownerId === user?.uid" class="dropdown-item danger" @click="$emit('delete-group', g.id, g.name); openMenuId = null">✕ 削除</div>
         </div>
       </div>
-      <button class="btn-new-group" @click="$emit('new-group')">+ グループを作成</button>
     </div>
+  </div>
+  <button class="btn-new-group" @click="$emit('new-group')">+ グループを作成</button>
+</div>
 
     <!-- Googleカレンダー連携 -->
     <button class="btn-gcal" @click="$emit('gcal')">
       📅 {{ gcalSignedIn ? 'Google連携中' : 'Googleカレンダー連携' }}
     </button>
 
-    <button class="btn-signout" @click="$emit('signout')">サインアウト</button>
+    <div class="bottom-bar">
+      <button class="btn-signout" @click="$emit('signout')">サインアウト</button>
+      <button class="btn-settings" @click="$emit('settings')">⚙️</button>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { events, groups, selectedGroupId, COLORS, dateStr } from '../stores/calendar'
+
+import { ref as vRef } from 'vue'
+const openMenuId = vRef(null)
+function toggleMenu(id) {
+  openMenuId.value = openMenuId.value === id ? null : id
+}
+// ドロップダウン外クリックで閉じる
+import { onMounted, onUnmounted } from 'vue'
+onMounted(() => document.addEventListener('click', () => openMenuId.value = null))
+onUnmounted(() => document.removeEventListener('click', () => openMenuId.value = null))
 
 const DAYS = ['日', '月', '火', '水', '木', '金', '土']
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
@@ -75,7 +93,7 @@ const props = defineProps({
   user: Object,
   gcalSignedIn: Boolean
 })
-defineEmits(['prev', 'next', 'goto', 'new-group', 'share', 'delete-group', 'gcal', 'signout'])
+defineEmits(['prev', 'next', 'goto', 'new-group', 'share', 'delete-group', 'gcal', 'signout', 'settings'])
 
 const userInitials = computed(() =>
   (props.user?.displayName || props.user?.email || '?').slice(0, 2).toUpperCase()
@@ -139,4 +157,12 @@ const miniDays = computed(() => {
 .btn-gcal:hover { background: #f3f2ef; }
 .btn-signout { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 8px; border: none; background: none; cursor: pointer; font-size: 12px; color: #aaa; width: 100%; margin-top: auto; }
 .btn-signout:hover { color: #D85A30; background: #FAECE7; }
+.group-menu { position: relative; }
+.dropdown { position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid #e5e5e3; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.1); z-index: 50; min-width: 120px; overflow: hidden; }
+.dropdown-item { padding: 9px 14px; font-size: 13px; cursor: pointer; color: #1a1a18; }
+.dropdown-item:hover { background: #f3f2ef; }
+.dropdown-item.danger { color: #D85A30; }
+.bottom-bar { display: flex; align-items: center; gap: 6px; margin-top: auto; }
+.btn-settings { padding: 7px 10px; border-radius: 8px; border: none; background: none; cursor: pointer; font-size: 16px; color: #aaa; }
+.btn-settings:hover { background: #f3f2ef; }
 </style>

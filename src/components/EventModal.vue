@@ -28,6 +28,18 @@
         </select>
       </div>
       <div class="field">
+        <label>カラー</label>
+        <div class="swatches">
+          <div
+            v-for="(c, i) in COLORS"
+            :key="i"
+            :class="['swatch', { sel: form.colorIdx === i }]"
+            :style="{ background: c.dot }"
+            @click="form.colorIdx = i"
+          ></div>
+        </div>
+      </div>
+      <div class="field">
         <label>メモ</label>
         <textarea v-model="form.memo" rows="2" placeholder="任意"></textarea>
       </div>
@@ -43,11 +55,12 @@
 
 <script setup>
 import { reactive, watch } from 'vue'
-import { groups } from '../stores/calendar'
+import { groups, COLORS } from '../stores/calendar'
 
 const props = defineProps({
   event: Object,
   defaultDate: String,
+  defaultGroupId: String,
   user: Object
 })
 const emit = defineEmits(['close', 'save', 'delete'])
@@ -59,7 +72,8 @@ const form = reactive({
   date: props.defaultDate || '',
   startTime: '',
   endTime: '',
-  groupId: '',
+  groupId: props.defaultGroupId || '',
+  colorIdx: 0,
   memo: ''
 })
 
@@ -70,6 +84,7 @@ watch(() => props.event, ev => {
     form.startTime = ev.startTime || ''
     form.endTime = ev.endTime || ''
     form.groupId = ev.groupId || ''
+    form.colorIdx = ev.colorIdx ?? 0
     form.memo = ev.memo || ''
   }
 }, { immediate: true })
@@ -95,4 +110,7 @@ h3 { font-size: 17px; font-weight: 600; }
 .btn-cancel { padding: 9px 16px; font-size: 14px; border: 1px solid #ddd; border-radius: 10px; background: none; cursor: pointer; color: #666; }
 .btn-save { padding: 9px 18px; font-size: 14px; font-weight: 500; background: #378ADD; color: #fff; border: none; border-radius: 10px; cursor: pointer; }
 .btn-del { padding: 9px 14px; font-size: 14px; border: 1px solid #fcc; border-radius: 10px; background: none; cursor: pointer; color: #D85A30; margin-right: auto; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: transform .1s; }
+.swatch.sel { border-color: #333; transform: scale(1.1); }
 </style>

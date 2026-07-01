@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore, doc, setDoc } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey:            "AIzaSyD7j0oYtrki-wTTQRlT8MD3NwhMC3YdwB0",
@@ -15,3 +15,7 @@ const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const provider = new GoogleAuthProvider()
 export const db = getFirestore(app)
+
+export async function saveUserProfile(uid, displayName, email) {
+  await setDoc(doc(db, 'users', uid), { displayName, email }, { merge: true })
+}

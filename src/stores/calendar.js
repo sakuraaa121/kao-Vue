@@ -2,7 +2,7 @@ import { ref, computed } from 'vue'
 import { db, auth } from '../firebase'
 import {
   collection, addDoc, updateDoc, deleteDoc,
-  doc, onSnapshot, query, where, orderBy, serverTimestamp
+  doc, getDoc, onSnapshot, query, where, orderBy, serverTimestamp
 } from 'firebase/firestore'
 
 // ── State ──
@@ -100,4 +100,19 @@ export async function deleteGroup(id) {
 // ── Helpers ──
 export function dateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+export const userCache = ref({})
+
+export async function fetchUserName(uid) {
+  if (userCache.value[uid]) return userCache.value[uid]
+  try {
+    const snap = await getDoc(doc(db, 'users', uid))
+    if (snap.exists()) {
+      const name = snap.data().displayName || snap.data().email || uid
+      userCache.value[uid] = name
+      return name
+    }
+  } catch (e) {}
+  return uid
 }

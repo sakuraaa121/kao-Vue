@@ -75,8 +75,7 @@ function dayEvents(date) {
 }
 
 function groupColor(ev) {
-  const g = groups.value.find(g => g.id === ev.groupId)
-  return COLORS[g?.colorIdx || 0]
+  return COLORS[ev.colorIdx ?? ev.colorIdx ?? 0] || COLORS[0]
 }
 </script>
 

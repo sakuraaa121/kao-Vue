@@ -34,6 +34,7 @@
         @delete-group="confirmDeleteGroup"
         @gcal="gcalSignIn"
         @signout="signOutUser"
+        @settings="showSettingsModal = true"
       />
       <div class="cal-main">
         <!-- ツールバー -->
@@ -44,13 +45,18 @@
             <button class="btn-nav" @click="nextMonth">›</button>
             <span class="cal-title">{{ calTitle }}</span>
           </div>
+          <button
+            v-if="selectedGroupId"
+            class="btn-members"
+            @click="showMemberModal = true"
+          >👥 メンバー</button>
           <button class="btn-add" @click="openAddEvent(null)">＋ 追加</button>
         </div>
 
         <!-- カレンダー -->
         <CalendarGrid
           :currentDate="currentDate"
-          @add-event="openAddEvent"
+          @add-event="date => { selectedDay = date; showDayView = true }"
           @edit-event="openEditEvent"
         />
       </div>
@@ -61,6 +67,7 @@
       v-if="showEventModal"
       :event="editingEvent"
       :defaultDate="defaultDate"
+      :defaultGroupId="defaultGroupId"
       :user="user"
       @close="showEventModal = false"
       @save="saveEvent"
@@ -74,6 +81,31 @@
       @save="saveGroup"
     />
 
+    <!-- 日ビュー -->
+    <DayView
+      v-if="showDayView"
+      :date="selectedDay"
+      @close="showDayView = false"
+      @add="openAddEvent"
+      @edit="ev => { showDayView = false; openEditEvent(ev) }"
+    />
+
+    <!-- メンバーモーダル -->
+    <MemberModal
+      v-if="showMemberModal"
+      :groupId="selectedGroupId"
+      @close="showMemberModal = false"
+      @share="openShare"
+    />
+
+    <!-- 設定モーダル -->
+    <SettingsModal
+      v-if="showSettingsModal"
+      :currentName="user?.displayName || user?.email"
+      @close="showSettingsModal = false"
+      @save="saveDisplayName"
+    />
+
     <!-- トースト -->
     <div :class="['toast', { show: toastVisible }]">{{ toastMsg }}</div>
   </div>
@@ -82,16 +114,19 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { auth, provider } from './firebase'
-import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth'
+import { signInWithPopup, onAuthStateChanged, signOut, updateProfile } from 'firebase/auth'
 import {
   subscribeData, unsubscribeData,
   addEvent, updateEvent, deleteEvent, addGroup, deleteGroup,
-  dateStr, COLORS, groups, events
+  dateStr, COLORS, groups, events, selectedGroupId
 } from './stores/calendar'
 import Sidebar from './components/Sidebar.vue'
 import CalendarGrid from './components/CalendarGrid.vue'
 import EventModal from './components/EventModal.vue'
 import GroupModal from './components/GroupModal.vue'
+import DayView from './components/DayView.vue'
+import MemberModal from './components/MemberModal.vue'
+import SettingsModal from './components/SettingsModal.vue'
 
 const MONTHS_JP = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 
@@ -104,20 +139,27 @@ const showEventModal = ref(false)
 const showGroupModal = ref(false)
 const editingEvent = ref(null)
 const defaultDate = ref('')
+const defaultGroupId = ref('')
 const toastMsg = ref('')
 const toastVisible = ref(false)
 const gcalSignedIn = ref(false)
+const showDayView = ref(false)
+const selectedDay = ref(null)
+const showMemberModal = ref(false)
+const showSettingsModal = ref(false)
 
 // ── Computed ──
 const calTitle = computed(() =>
   `${currentDate.value.getFullYear()}年 ${MONTHS_JP[currentDate.value.getMonth()]}`
 )
 
-// ── Auth ──
+import { saveUserProfile } from './firebase'
+
 onAuthStateChanged(auth, u => {
   loading.value = false
   user.value = u
   if (u) {
+    saveUserProfile(u.uid, u.displayName || u.email, u.email)
     subscribeData(u.uid)
   } else {
     unsubscribeData()
@@ -155,14 +197,30 @@ function goToday() {
 }
 function gotoDate(date) {
   currentDate.value = new Date(date.getFullYear(), date.getMonth(), 1)
+  selectedDay.value = date
+  showDayView.value = true
+}
+
+async function saveDisplayName(name) {
+  try {
+    await updateProfile(auth.currentUser, { displayName: name })
+    await saveUserProfile(auth.currentUser.uid, name, auth.currentUser.email)
+    showSettingsModal.value = false
+    showToast('表示名を変更しました')
+  } catch (e) {
+    showToast('変更に失敗しました: ' + e.message)
+  }
 }
 
 // ── Event handlers ──
 function openAddEvent(date) {
   editingEvent.value = null
   defaultDate.value = date ? dateStr(date) : dateStr(new Date())
+  defaultGroupId.value = selectedGroupId.value || ''
+  showDayView.value = false
   showEventModal.value = true
 }
+
 function openEditEvent(ev) {
   editingEvent.value = ev
   showEventModal.value = true
@@ -263,4 +321,6 @@ html, body, #app { height: 100%; font-family: -apple-system, BlinkMacSystemFont,
 .btn-add:hover { opacity: .88; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a18; color: #f8f8f7; padding: 10px 18px; border-radius: 20px; font-size: 13px; z-index: 200; pointer-events: none; opacity: 0; transition: opacity .2s; }
 .toast.show { opacity: 1; }
+.btn-members { display: flex; align-items: center; gap: 4px; padding: 7px 13px; font-size: 13px; font-weight: 500; background: #f3f2ef; color: #1a1a18; border: 1px solid #e5e5e3; border-radius: 8px; cursor: pointer; }
+.btn-members:hover { background: #e5e5e3; }
 </style>
