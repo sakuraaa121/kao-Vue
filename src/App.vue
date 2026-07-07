@@ -115,6 +115,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { auth, provider } from './firebase'
 import { signInWithPopup, onAuthStateChanged, signOut, updateProfile } from 'firebase/auth'
+import { getDoc, updateDoc, doc } from 'firebase/firestore'
+import { db } from './firebase'
 import {
   subscribeData, unsubscribeData,
   addEvent, updateEvent, deleteEvent, addGroup, deleteGroup,
@@ -161,6 +163,7 @@ onAuthStateChanged(auth, u => {
   if (u) {
     saveUserProfile(u.uid, u.displayName || u.email, u.email)
     subscribeData(u.uid)
+    setTimeout(handleJoinLink, 1000)
   } else {
     unsubscribeData()
   }
@@ -209,6 +212,30 @@ async function saveDisplayName(name) {
     showToast('表示名を変更しました')
   } catch (e) {
     showToast('変更に失敗しました: ' + e.message)
+  }
+}
+
+async function handleJoinLink() {
+  const params = new URLSearchParams(location.search)
+  const gid = params.get('join')
+  if (!gid || !user.value) return
+  try {
+    const gref = doc(db, 'groups', gid)
+    const gsnap = await getDoc(gref)
+    if (!gsnap.exists()) {
+      showToast('グループが見つかりません')
+      return
+    }
+    const gdata = gsnap.data()
+    if (!gdata.members.includes(user.value.uid)) {
+      await updateDoc(gref, { members: [...gdata.members, user.value.uid] })
+      showToast(`「${gdata.name}」に参加しました！`)
+    } else {
+      showToast('すでにグループのメンバーです')
+    }
+    window.history.replaceState({}, '', location.pathname)
+  } catch (e) {
+    showToast('参加に失敗しました: ' + e.message)
   }
 }
 
