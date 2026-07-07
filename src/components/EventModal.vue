@@ -6,7 +6,8 @@
 
       <div class="field">
         <label>タイトル</label>
-        <input v-model="form.title" placeholder="例：ゼミ発表" />
+        <input ref="titleInput" v-model="form.title" placeholder="例：ゼミ発表" @input="titleError = ''" />
+        <div v-if="titleError" class="field-error">{{ titleError }}</div>
       </div>
 
       <div class="field-row">
@@ -22,10 +23,10 @@
         <input v-model="form.date" type="date" @change="onStartDateChange" />
       </div>
       <template v-if="!form.allDay">
-        <div class="field">
-          <label>開始時刻</label>
-          <input v-model="form.startTime" type="time" />
-        </div>
+      <div class="field">
+      　 <label>開始時刻</label>
+        <TimePicker :modelValue="form.startTime" @update:modelValue="onStartTimeChange" />
+      </div>
       </template>
       <div class="field">
         <label>終了日</label>
@@ -34,7 +35,12 @@
       <template v-if="!form.allDay">
         <div class="field">
           <label>終了時刻</label>
-          <input v-model="form.endTime" type="time" />
+          <TimePicker
+            :modelValue="form.endTime"
+            :minTime="form.date === form.endDate ? form.startTime : undefined"
+            @update:modelValue="onEndTimeChange"
+          />
+          <div v-if="endTimeError" class="field-error">{{ endTimeError }}</div>
         </div>
       </template>
       <div class="field">
@@ -71,8 +77,19 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
 import { groups, COLORS } from '../stores/calendar'
+import TimePicker from './TimePicker.vue'
+
+import { ref, reactive, watch, onMounted, nextTick } from 'vue'
+
+const titleInput = ref(null)
+
+onMounted(async () => {
+  if (!props.event) {
+    await nextTick()
+    titleInput.value?.focus()
+  }
+})
 
 const props = defineProps({
   event: Object,
@@ -89,8 +106,8 @@ const form = reactive({
   date: props.defaultDate || '',
   endDate: props.defaultDate || '',
   allDay: false,
-  startTime: '',
-  endTime: '',
+  startTime: '08:00',
+  endTime: '09:00',
   groupId: props.defaultGroupId || '',
   colorIdx: 0,
   memo: ''
@@ -111,7 +128,18 @@ watch(() => props.event, ev => {
 }, { immediate: true })
 
 function submit() {
-  if (!form.title || !form.date) return
+  titleError.value = ''
+  if (!form.title) {
+    titleError.value = 'タイトルを入力してください'
+    return
+  }
+  if (!form.date) return
+  const endDate = form.endDate || form.date
+  if (!form.allDay && form.date === endDate && form.endTime && form.startTime && form.endTime <= form.startTime) {
+    endTimeError.value = '終了時刻は開始時刻より後にしてください'
+    return
+  }
+  endTimeError.value = ''
   emit('save', { ...form, id: props.event?.id, gcalEventId: props.event?.gcalEventId })
 }
 
@@ -120,6 +148,36 @@ function onStartDateChange() {
     form.endDate = form.date
   }
 }
+
+function onStartTimeChange(newTime) {
+  form.startTime = newTime
+  if (!form.endTime) {
+    form.endTime = addHour(newTime)
+    return
+  }
+  if (newTime >= form.endTime) {
+    form.endTime = addHour(newTime)
+  }
+}
+
+function addHour(time) {
+  const [h, m] = time.split(':').map(Number)
+  if (h >= 23) return '23:59'
+  return `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+const endTimeError = ref('')
+
+function onEndTimeChange(newTime) {
+  if (form.date === form.endDate && newTime <= form.startTime) {
+    endTimeError.value = '終了時刻は開始時刻より後にしてください'
+    return
+  }
+  endTimeError.value = ''
+  form.endTime = newTime
+}
+
+const titleError = ref('')
 </script>
 
 <style scoped>
@@ -146,4 +204,5 @@ h3 { font-size: 17px; font-weight: 600; }
 .toggle.on { background: #378ADD; }
 .toggle-knob { width: 18px; height: 18px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 .toggle.on .toggle-knob { left: 20px; }
+.field-error { font-size: 11px; color: #D85A30; margin-top: 2px; }
 </style>

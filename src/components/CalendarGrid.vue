@@ -91,13 +91,13 @@ function groupColor(ev) {
 .chip.active { background: #888; color: #fff; border-color: transparent; }
 .dow-header { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid #e5e5e3; }
 .dow-header span { font-size: 11px; color: #aaa; text-align: center; padding: 5px 0; }
-.month-body { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); overflow-y: auto; }
-.cal-cell { border-right: 1px solid #e5e5e3; border-bottom: 1px solid #e5e5e3; padding: 5px 6px; min-height: 80px; cursor: pointer; }
+.month-body { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow-y: auto; }
+.cal-cell { border-right: 1px solid #e5e5e3; border-bottom: 1px solid #e5e5e3; padding: 5px 6px; min-height: 80px; cursor: pointer; min-width: 0; overflow: hidden; }
+.ev-chip { font-size: 10px; padding: 2px 5px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font-weight: 500; display: block; width: 100%; box-sizing: border-box; }
 .cal-cell:nth-child(7n) { border-right: none; }
 .cal-cell:hover { background: #f8f8f7; }
 .cal-cell.today-cell { background: #E6F1FB; }
 .cal-cell.other-month .cell-day-num { opacity: 0.35; }
 .cell-day-num { font-size: 12px; font-weight: 500; color: #666; margin-bottom: 3px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
 .today-cell .cell-day-num { background: #378ADD; color: #fff; font-weight: 700; }
-.ev-chip { font-size: 10px; padding: 2px 5px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font-weight: 500; }
 </style>
