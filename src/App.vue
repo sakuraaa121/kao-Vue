@@ -113,6 +113,12 @@
 </template>
 
 <script setup>
+// 真のダークモードから脱出用
+if (new URLSearchParams(location.search).get('reset')) {
+  localStorage.setItem('cal_theme', 'light')
+  window.history.replaceState({}, '', location.pathname)
+}
+
 import { ref, computed, onMounted } from 'vue'
 import { auth, provider } from './firebase'
 import { signInWithPopup, onAuthStateChanged, signOut, updateProfile } from 'firebase/auth'
@@ -448,22 +454,19 @@ html, body, #app { height: 100%; font-family: -apple-system, BlinkMacSystemFont,
   border-color: #000 !important;
   box-shadow: none !important;
   text-shadow: none !important;
-  opacity: 1 !important;
+  -webkit-text-fill-color: #000 !important;
+  visibility: hidden !important;
 }
 
 [data-theme="true-dark"] *::before,
 [data-theme="true-dark"] *::after {
-  color: #000 !important;
+  visibility: hidden !important;
+}
+
+[data-theme="true-dark"] html,
+[data-theme="true-dark"] body,
+[data-theme="true-dark"] #app {
+  visibility: visible !important;
   background: #000 !important;
-}
-
-/* 絵文字を黒い四角で覆う */
-[data-theme="true-dark"] {
-  font-family: monospace !important;
-}
-
-[data-theme="true-dark"] * {
-  font-family: monospace !important;
-  -webkit-text-fill-color: #000 !important;
 }
 </style>
