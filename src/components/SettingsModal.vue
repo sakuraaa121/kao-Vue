@@ -49,6 +49,7 @@ const themes = [
   { value: 'light', label: 'ライト' },
   { value: 'dark', label: 'ダーク' },
   { value: 'system', label: 'システム' },
+  { value: 'true-dark', label: '真のダークモード' },
 ]
 
 function submit() {
@@ -69,15 +70,16 @@ h3 { font-size: 17px; font-weight: 600; }
 .field input { font-size: 14px; padding: 11px 13px; border: 1px solid #ddd; border-radius: 10px; background: #f8f8f7; color: #1a1a18; width: 100%; outline: none; }
 .field input:focus { border-color: #378ADD; box-shadow: 0 0 0 3px rgba(55,138,221,.15); }
 .field-note { font-size: 11px; color: #aaa; }
-.theme-options { display: flex; gap: 10px; margin-top: 4px; }
-.theme-option { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; flex: 1; }
+.theme-options { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+.theme-option { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; flex: 1; min-width: 60px; }
 .theme-option.active { border-color: #378ADD; background: #E6F1FB; }
-.theme-option span { font-size: 12px; color: #666; }
+.theme-option span { font-size: 12px; color: #666; text-align: center; }
 .theme-option.active span { color: #378ADD; font-weight: 500; }
 .theme-preview { width: 40px; height: 28px; border-radius: 6px; border: 1px solid #ddd; }
 .theme-preview.light { background: #fff; }
 .theme-preview.dark { background: #1a1a18; }
 .theme-preview.system { background: linear-gradient(135deg, #fff 50%, #1a1a18 50%); }
+.theme-preview.true-dark { background: #000; border-color: #000; }
 .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
 .btn-cancel { padding: 9px 16px; font-size: 14px; border: 1px solid #ddd; border-radius: 10px; background: none; cursor: pointer; color: #666; }
 .btn-save { padding: 9px 18px; font-size: 14px; font-weight: 500; background: #378ADD; color: #fff; border: none; border-radius: 10px; cursor: pointer; }

@@ -330,12 +330,13 @@ function showToast(msg) {
 
 function applyTheme(t) {
   const root = document.documentElement
-  if (t === 'dark') {
+  root.removeAttribute('data-theme')
+  if (t === 'true-dark') {
+    root.setAttribute('data-theme', 'true-dark')
+  } else if (t === 'dark') {
     root.setAttribute('data-theme', 'dark')
   } else if (t === 'light') {
     root.setAttribute('data-theme', 'light')
-  } else {
-    root.removeAttribute('data-theme')
   }
   localStorage.setItem('cal_theme', t)
   theme.value = t
@@ -439,5 +440,13 @@ html, body, #app { height: 100%; font-family: -apple-system, BlinkMacSystemFont,
 [data-theme="dark"] .btn-today:hover,
 [data-theme="dark"] .btn-nav:hover {
   background: #252522;
+}
+
+[data-theme="true-dark"] * {
+  color: #000 !important;
+  background: #000 !important;
+  border-color: #000 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
 }
 </style>
