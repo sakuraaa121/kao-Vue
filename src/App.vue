@@ -102,6 +102,7 @@
     <SettingsModal
       v-if="showSettingsModal"
       :currentName="user?.displayName || user?.email"
+      :currentTheme="theme"
       @close="showSettingsModal = false"
       @save="saveDisplayName"
     />
@@ -133,6 +134,7 @@ import SettingsModal from './components/SettingsModal.vue'
 const MONTHS_JP = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 
 // ── State ──
+const theme = ref(localStorage.getItem('cal_theme') || 'system')
 const loading = ref(true)
 const user = ref(null)
 const authError = ref('')
@@ -204,12 +206,13 @@ function gotoDate(date) {
   showDayView.value = true
 }
 
-async function saveDisplayName(name) {
+async function saveDisplayName({ displayName: name, theme: newTheme }) {
   try {
     await updateProfile(auth.currentUser, { displayName: name })
     await saveUserProfile(auth.currentUser.uid, name, auth.currentUser.email)
+    applyTheme(newTheme)
     showSettingsModal.value = false
-    showToast('表示名を変更しました')
+    showToast('設定を保存しました')
   } catch (e) {
     showToast('変更に失敗しました: ' + e.message)
   }
@@ -324,6 +327,22 @@ function showToast(msg) {
   toastVisible.value = true
   setTimeout(() => { toastVisible.value = false }, 2200)
 }
+
+function applyTheme(t) {
+  const root = document.documentElement
+  if (t === 'dark') {
+    root.setAttribute('data-theme', 'dark')
+  } else if (t === 'light') {
+    root.setAttribute('data-theme', 'light')
+  } else {
+    root.removeAttribute('data-theme')
+  }
+  localStorage.setItem('cal_theme', t)
+  theme.value = t
+}
+
+// 起動時に適用
+applyTheme(theme.value)
 </script>
 
 <style>
@@ -355,4 +374,70 @@ html, body, #app { height: 100%; font-family: -apple-system, BlinkMacSystemFont,
 .toast.show { opacity: 1; }
 .btn-members { display: flex; align-items: center; gap: 4px; padding: 7px 13px; font-size: 13px; font-weight: 500; background: #f3f2ef; color: #1a1a18; border: 1px solid #e5e5e3; border-radius: 8px; cursor: pointer; }
 .btn-members:hover { background: #e5e5e3; }
+[data-theme="dark"] {
+  --bg: #0F0F0E;
+  --surface: #1C1C1A;
+  --surface2: #252522;
+  --text: #F0EFE8;
+  --text2: #9B9B95;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+}
+
+[data-theme="dark"] body,
+[data-theme="dark"] #app {
+  background: #0F0F0E;
+  color: #F0EFE8;
+}
+
+[data-theme="dark"] .sidebar,
+[data-theme="dark"] .cal-main,
+[data-theme="dark"] .toolbar {
+  background: #1C1C1A;
+  border-color: rgba(255,255,255,0.08);
+}
+
+[data-theme="dark"] .cal-cell {
+  border-color: rgba(255,255,255,0.08);
+}
+
+[data-theme="dark"] .cal-cell:hover {
+  background: #252522;
+}
+
+[data-theme="dark"] .today-cell {
+  background: #0D2845;
+}
+
+[data-theme="dark"] .sheet {
+  background: #1C1C1A;
+  color: #F0EFE8;
+}
+
+[data-theme="dark"] .field input,
+[data-theme="dark"] .field select,
+[data-theme="dark"] .field textarea {
+  background: #252522;
+  color: #F0EFE8;
+  border-color: rgba(255,255,255,0.14);
+}
+
+[data-theme="dark"] .group-row:hover,
+[data-theme="dark"] .group-row.active {
+  background: #252522;
+}
+
+[data-theme="dark"] .user-pill {
+  background: #252522;
+}
+
+[data-theme="dark"] .btn-today,
+[data-theme="dark"] .btn-nav {
+  color: #9B9B95;
+}
+
+[data-theme="dark"] .btn-today:hover,
+[data-theme="dark"] .btn-nav:hover {
+  background: #252522;
+}
 </style>
