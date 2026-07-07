@@ -262,9 +262,9 @@ function openAddEvent(date) {
   showEventModal.value = true
 }
 
-function openEditEvent(ev) {
-  editingEvent.value = ev
-  showEventModal.value = true
+function openSettings() {
+  console.log('⚙️ 設定ボタンが押されました。真のダークモードでも動いています！')
+  showSettingsModal.value = true
 }
 
 async function saveEvent(form) {
