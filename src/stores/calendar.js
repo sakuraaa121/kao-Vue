@@ -46,7 +46,8 @@ export function subscribeData(uid) {
 
   const grQ = query(
     collection(db, 'groups'),
-    where('members', 'array-contains', uid)
+    where('members', 'array-contains', uid),
+    orderBy('createdAt')
   )
   unsubGroups = onSnapshot(grQ, snap => {
     groups.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
