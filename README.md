@@ -42,3 +42,9 @@ npm run build
 ```sh
 npm run lint
 ```
+
+### 真のダークモードからの脱出方法
+
+```sh
+https://sakuraaa121.github.io/kao-Vue/?reset=true
+```
