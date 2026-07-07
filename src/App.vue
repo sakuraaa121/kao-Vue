@@ -218,15 +218,19 @@ async function saveDisplayName(name) {
 async function handleJoinLink() {
   const params = new URLSearchParams(location.search)
   const gid = params.get('join')
+  console.log('join gid:', gid)
+  console.log('user:', user.value?.uid)
   if (!gid || !user.value) return
   try {
     const gref = doc(db, 'groups', gid)
     const gsnap = await getDoc(gref)
+    console.log('gsnap exists:', gsnap.exists())
     if (!gsnap.exists()) {
       showToast('グループが見つかりません')
       return
     }
     const gdata = gsnap.data()
+    console.log('gdata:', gdata)
     if (!gdata.members.includes(user.value.uid)) {
       await updateDoc(gref, { members: [...gdata.members, user.value.uid] })
       showToast(`「${gdata.name}」に参加しました！`)
@@ -235,6 +239,7 @@ async function handleJoinLink() {
     }
     window.history.replaceState({}, '', location.pathname)
   } catch (e) {
+    console.error('join error:', e)
     showToast('参加に失敗しました: ' + e.message)
   }
 }
