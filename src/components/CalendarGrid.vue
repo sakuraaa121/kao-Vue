@@ -71,7 +71,12 @@ const calDays = computed(() => {
 const weeks = computed(() => calDays.value.length / 7)
 
 function dayEvents(date) {
-  return filteredEvents.value.filter(e => e.date === dateStr(date))
+  const ds = dateStr(date)
+  return filteredEvents.value.filter(e => {
+    const start = e.date
+    const end = e.endDate || e.date
+    return start <= ds && ds <= end
+  })
 }
 
 function groupColor(ev) {

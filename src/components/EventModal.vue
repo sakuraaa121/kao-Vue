@@ -8,18 +8,35 @@
         <label>タイトル</label>
         <input v-model="form.title" placeholder="例：ゼミ発表" />
       </div>
-      <div class="field">
-        <label>日付</label>
-        <input v-model="form.date" type="date" />
+
+      <div class="field-row">
+        <label class="toggle-label">
+          <span>終日</span>
+          <div :class="['toggle', { on: form.allDay }]" @click="form.allDay = !form.allDay">
+            <div class="toggle-knob"></div>
+          </div>
+        </label>
       </div>
       <div class="field">
-        <label>開始時刻（任意）</label>
-        <input v-model="form.startTime" type="time" />
+        <label>開始日</label>
+        <input v-model="form.date" type="date" @change="onStartDateChange" />
       </div>
+      <template v-if="!form.allDay">
+        <div class="field">
+          <label>開始時刻</label>
+          <input v-model="form.startTime" type="time" />
+        </div>
+      </template>
       <div class="field">
-        <label>終了時刻（任意）</label>
-        <input v-model="form.endTime" type="time" />
+        <label>終了日</label>
+        <input v-model="form.endDate" type="date" :min="form.date" />
       </div>
+      <template v-if="!form.allDay">
+        <div class="field">
+          <label>終了時刻</label>
+          <input v-model="form.endTime" type="time" />
+        </div>
+      </template>
       <div class="field">
         <label>グループ</label>
         <select v-model="form.groupId">
@@ -70,6 +87,8 @@ const isOwner = props.event?.ownerId === props.user?.uid
 const form = reactive({
   title: '',
   date: props.defaultDate || '',
+  endDate: props.defaultDate || '',
+  allDay: false,
   startTime: '',
   endTime: '',
   groupId: props.defaultGroupId || '',
@@ -81,6 +100,8 @@ watch(() => props.event, ev => {
   if (ev) {
     form.title = ev.title || ''
     form.date = ev.date || ''
+    form.endDate = ev.endDate || ev.date || ''
+    form.allDay = ev.allDay ?? true
     form.startTime = ev.startTime || ''
     form.endTime = ev.endTime || ''
     form.groupId = ev.groupId || ''
@@ -92,6 +113,12 @@ watch(() => props.event, ev => {
 function submit() {
   if (!form.title || !form.date) return
   emit('save', { ...form, id: props.event?.id, gcalEventId: props.event?.gcalEventId })
+}
+
+function onStartDateChange() {
+  if (!form.endDate || form.endDate < form.date) {
+    form.endDate = form.date
+  }
 }
 </script>
 
@@ -113,4 +140,10 @@ h3 { font-size: 17px; font-weight: 600; }
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: transform .1s; }
 .swatch.sel { border-color: #333; transform: scale(1.1); }
+.field-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+.toggle-label { display: flex; align-items: center; justify-content: space-between; width: 100%; cursor: pointer; font-size: 14px; color: #1a1a18; }
+.toggle { width: 40px; height: 22px; border-radius: 11px; background: #ddd; position: relative; transition: background .2s; cursor: pointer; flex-shrink: 0; }
+.toggle.on { background: #378ADD; }
+.toggle-knob { width: 18px; height: 18px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.toggle.on .toggle-knob { left: 20px; }
 </style>

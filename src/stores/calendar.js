@@ -79,7 +79,11 @@ export async function updateEvent(id, data, uid) {
     const g = groups.value.find(g => g.id === data.groupId)
     if (g?.members) members = [...new Set([...members, ...g.members])]
   }
-  await updateDoc(doc(db, 'events', id), { ...data, members })
+  // undefined のフィールドを除去
+  const { id: _id, gcalEventId, ...cleanData } = data
+  const updateData = { ...cleanData, members }
+  if (gcalEventId !== undefined) updateData.gcalEventId = gcalEventId
+  await updateDoc(doc(db, 'events', id), updateData)
 }
 
 export async function deleteEvent(id) {

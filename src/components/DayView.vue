@@ -61,7 +61,11 @@ const title = computed(() => {
 const dayEvents = computed(() => {
   const ds = dateStr(props.date)
   return filteredEvents.value
-    .filter(e => e.date === ds)
+    .filter(e => {
+      const start = e.date
+      const end = e.endDate || e.date
+      return start <= ds && ds <= end
+    })
     .sort((a, b) => {
       if (!a.startTime) return 1
       if (!b.startTime) return -1
