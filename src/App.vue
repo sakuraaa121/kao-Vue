@@ -448,5 +448,22 @@ html, body, #app { height: 100%; font-family: -apple-system, BlinkMacSystemFont,
   border-color: #000 !important;
   box-shadow: none !important;
   text-shadow: none !important;
+  opacity: 1 !important;
+}
+
+[data-theme="true-dark"] *::before,
+[data-theme="true-dark"] *::after {
+  color: #000 !important;
+  background: #000 !important;
+}
+
+/* 絵文字を黒い四角で覆う */
+[data-theme="true-dark"] {
+  font-family: monospace !important;
+}
+
+[data-theme="true-dark"] * {
+  font-family: monospace !important;
+  -webkit-text-fill-color: #000 !important;
 }
 </style>
