@@ -6,7 +6,7 @@
 
       <div class="field">
         <label>タイトル</label>
-        <input ref="titleInput" v-model="form.title" placeholder="例：ゼミ発表" @input="titleError = ''" />
+        <input ref="titleInput" v-model="form.title" placeholder="例：じゃんけん" @input="titleError = ''" />
         <div v-if="titleError" class="field-error">{{ titleError }}</div>
       </div>
 

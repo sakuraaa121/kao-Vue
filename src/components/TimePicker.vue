@@ -1,5 +1,5 @@
 <template>
-  <div class="time-field">
+  <div class="time-field" :data-timepicker="pickerId">
     <div class="time-display" @click="toggle">
       <span class="time-text">{{ modelValue || 'hh:mm' }}</span>
       <span class="time-icon">🕐</span>
@@ -59,6 +59,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 
+const pickerId = Math.random().toString(36).slice(2)
 const open = ref(false)
 const hour = ref(0)
 const minute = ref(0)
@@ -81,9 +82,24 @@ const isInvalid = computed(() => {
   return `${hourStr.value}:${minuteStr.value}` <= props.minTime
 })
 
-function toggle() { open.value = !open.value }
-function changeHour(delta) { hour.value = (hour.value + delta + 24) % 24 }
-function changeMinute(delta) { minute.value = (minute.value + delta * 10 + 60) % 60 }
+function toggle() {
+  open.value = !open.value
+}
+
+function changeHour(delta) {
+  hour.value = (hour.value + delta + 24) % 24
+}
+
+function changeMinute(delta) {
+  const current = minute.value
+  if (delta > 0) {
+    const next = Math.ceil((current + 1) / 10) * 10
+    minute.value = next >= 60 ? 0 : next
+  } else {
+    const prev = Math.floor((current - 1) / 10) * 10
+    minute.value = prev < 0 ? 50 : prev
+  }
+}
 
 function toHalf(str) {
   return str.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
@@ -130,8 +146,14 @@ function confirm() {
 }
 
 function onClickOutside(e) {
-  if (!e.target.closest('.time-field')) open.value = false
+  if (open.value && !e.target.closest(`[data-timepicker="${pickerId}"]`)) {
+    if (!isInvalid.value) {
+      emit('update:modelValue', `${hourStr.value}:${minuteStr.value}`)
+    }
+    open.value = false
+  }
 }
+
 onMounted(() => document.addEventListener('click', onClickOutside))
 onUnmounted(() => document.removeEventListener('click', onClickOutside))
 </script>
