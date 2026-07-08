@@ -72,6 +72,7 @@
       @close="showEventModal = false"
       @save="saveEvent"
       @delete="deleteEventHandler"
+      @save-multi="saveMultiEvent"
     />
 
     <!-- グループモーダル -->
@@ -124,11 +125,6 @@ import { auth, provider } from './firebase'
 import { signInWithPopup, onAuthStateChanged, signOut, updateProfile } from 'firebase/auth'
 import { getDoc, updateDoc, doc } from 'firebase/firestore'
 import { db } from './firebase'
-import {
-  subscribeData, unsubscribeData,
-  addEvent, updateEvent, deleteEvent, addGroup, deleteGroup,
-  dateStr, COLORS, groups, events, selectedGroupId
-} from './stores/calendar'
 import Sidebar from './components/Sidebar.vue'
 import CalendarGrid from './components/CalendarGrid.vue'
 import EventModal from './components/EventModal.vue'
@@ -165,13 +161,24 @@ const calTitle = computed(() =>
 
 import { saveUserProfile } from './firebase'
 
+import {
+  subscribeData, unsubscribeData,
+  addEvent, updateEvent, deleteEvent, addGroup, deleteGroup,
+  dateStr, COLORS, groups, events, selectedGroupId, favoriteGroupId
+} from './stores/calendar'
+
 onAuthStateChanged(auth, u => {
   loading.value = false
   user.value = u
   if (u) {
     saveUserProfile(u.uid, u.displayName || u.email, u.email)
     subscribeData(u.uid)
-    setTimeout(handleJoinLink, 1000)
+    setTimeout(() => {
+      if (favoriteGroupId.value) {
+        selectedGroupId.value = favoriteGroupId.value
+      }
+      handleJoinLink()
+    }, 1000)
   } else {
     unsubscribeData()
   }
@@ -262,6 +269,11 @@ function openAddEvent(date) {
   showEventModal.value = true
 }
 
+function openEditEvent(ev) {
+  editingEvent.value = ev
+  showEventModal.value = true
+}
+
 function openSettings() {
   console.log('⚙️ 設定ボタンが押されました。真のダークモードでも動いています！')
   showSettingsModal.value = true
@@ -291,6 +303,18 @@ async function deleteEventHandler(id) {
     showToast('削除しました')
   } catch (e) {
     showToast('削除に失敗しました')
+  }
+}
+
+async function saveMultiEvent(form) {
+  try {
+    for (const date of form.multiDates) {
+      await addEvent({ ...form, date, endDate: date }, user.value.uid)
+    }
+    showEventModal.value = false
+    showToast(`${form.multiDates.length}件のイベントを追加しました`)
+  } catch (e) {
+    showToast('保存に失敗しました: ' + e.message)
   }
 }
 

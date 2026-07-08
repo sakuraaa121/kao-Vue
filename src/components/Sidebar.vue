@@ -30,34 +30,37 @@
     </div>
 
     <!-- グループ -->
-<!-- グループ -->
-<div>
-  <div class="section-label">グループ</div>
-  <div class="group-list">
-    <div :class="['group-row', { active: selectedGroupId === null }]" @click="selectedGroupId = null">
-      <div class="group-dot" style="background:#aaa"></div>
-      <span class="group-name">すべて</span>
-      <span class="group-badge">{{ events.length }}</span>
-    </div>
-    <div
-      v-for="g in groups"
-      :key="g.id"
-      :class="['group-row', { active: selectedGroupId === g.id }]"
-      @click="selectedGroupId = g.id"
-    >
-      <div class="group-dot" :style="{ background: COLORS[g.colorIdx||0].dot }"></div>
-      <span class="group-name">{{ g.name }}</span>
-      <div class="group-menu">
-        <button class="btn-sm" @click.stop="toggleMenu(g.id)">⋯</button>
-        <div v-if="openMenuId === g.id" class="dropdown" @click.stop>
-          <div class="dropdown-item" @click="$emit('share', g.id); openMenuId = null">⇪ 共有</div>
-          <div v-if="g.ownerId === user?.uid" class="dropdown-item danger" @click="$emit('delete-group', g.id, g.name); openMenuId = null">✕ 削除</div>
+    <div>
+      <div class="section-label">グループ</div>
+      <div class="group-list">
+        <div :class="['group-row', { active: selectedGroupId === null }]" @click="selectedGroupId = null">
+          <div class="group-dot" style="background:#aaa"></div>
+          <span class="group-name">すべて</span>
+          <span class="group-badge">{{ events.length }}</span>
+        </div>
+        <div
+          v-for="g in groups"
+          :key="g.id"
+          :class="['group-row', { active: selectedGroupId === g.id }]"
+          @click="selectedGroupId = g.id"
+        >
+          <div class="group-dot" :style="{ background: COLORS[g.colorIdx||0].dot }"></div>
+          <span class="group-name">{{ g.name }}</span>
+          <span v-if="favoriteGroupId === g.id" class="favorite-star">★</span>
+          <div class="group-menu">
+            <button class="btn-sm" @click.stop="toggleMenu(g.id)">⋯</button>
+            <div v-if="openMenuId === g.id" class="dropdown" @click.stop>
+              <div class="dropdown-item" @click="setFavoriteGroup(g.id); openMenuId = null">
+                {{ favoriteGroupId === g.id ? '★ お気に入り解除' : '☆ お気に入り' }}
+              </div>
+              <div class="dropdown-item" @click="$emit('share', g.id); openMenuId = null">⇪ 共有</div>
+              <div v-if="g.ownerId === user?.uid" class="dropdown-item danger" @click="$emit('delete-group', g.id, g.name); openMenuId = null">✕ 削除</div>
+            </div>
+          </div>
         </div>
       </div>
+      <button class="btn-new-group" @click="$emit('new-group')">+ グループを作成</button>
     </div>
-  </div>
-  <button class="btn-new-group" @click="$emit('new-group')">+ グループを作成</button>
-</div>
 
     <!-- Googleカレンダー連携 -->
     <button class="btn-gcal" @click="$emit('gcal')">
@@ -72,16 +75,14 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { events, groups, selectedGroupId, COLORS, dateStr } from '../stores/calendar'
+import { computed, ref as vRef, onMounted, onUnmounted } from 'vue'
+import { events, groups, selectedGroupId, COLORS, dateStr, favoriteGroupId, setFavoriteGroup } from '../stores/calendar'
 
-import { ref as vRef } from 'vue'
 const openMenuId = vRef(null)
 function toggleMenu(id) {
   openMenuId.value = openMenuId.value === id ? null : id
 }
-// ドロップダウン外クリックで閉じる
-import { onMounted, onUnmounted } from 'vue'
+
 onMounted(() => document.addEventListener('click', () => openMenuId.value = null))
 onUnmounted(() => document.removeEventListener('click', () => openMenuId.value = null))
 
@@ -148,6 +149,7 @@ const miniDays = computed(() => {
 .group-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .group-name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .group-badge { font-size: 10px; color: #aaa; padding: 1px 6px; background: #f3f2ef; border-radius: 10px; }
+.favorite-star { font-size: 12px; color: #BA7517; margin-right: 2px; }
 .btn-sm { background: none; border: none; cursor: pointer; color: #aaa; padding: 3px 5px; border-radius: 5px; font-size: 13px; }
 .btn-sm:hover { color: #666; background: #e5e5e3; }
 .btn-sm.danger { color: #D85A30; }
@@ -155,7 +157,7 @@ const miniDays = computed(() => {
 .btn-new-group:hover { background: #f3f2ef; }
 .btn-gcal { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 8px; border: none; background: none; cursor: pointer; font-size: 12px; color: #1D9E75; width: 100%; }
 .btn-gcal:hover { background: #f3f2ef; }
-.btn-signout { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 8px; border: none; background: none; cursor: pointer; font-size: 12px; color: #aaa; width: 100%; margin-top: auto; }
+.btn-signout { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 8px; border: none; background: none; cursor: pointer; font-size: 12px; color: #aaa; width: 100%; }
 .btn-signout:hover { color: #D85A30; background: #FAECE7; }
 .group-menu { position: relative; }
 .dropdown { position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid #e5e5e3; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.1); z-index: 50; min-width: 120px; overflow: hidden; }

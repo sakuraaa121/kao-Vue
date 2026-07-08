@@ -12,6 +12,18 @@ export const selectedGroupId = ref(null)
 export const currentView = ref('month')
 export const currentDate = ref(new Date())
 
+export const favoriteGroupId = ref(localStorage.getItem('cal_favorite_group') || null)
+
+export function setFavoriteGroup(gid) {
+  if (favoriteGroupId.value === gid) {
+    favoriteGroupId.value = null
+    localStorage.removeItem('cal_favorite_group')
+  } else {
+    favoriteGroupId.value = gid
+    localStorage.setItem('cal_favorite_group', gid)
+  }
+}
+
 // ── Filtered Events ──
 export const filteredEvents = computed(() => {
   if (!selectedGroupId.value) return events.value

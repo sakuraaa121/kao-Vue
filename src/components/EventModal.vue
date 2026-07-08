@@ -10,37 +10,56 @@
         <div v-if="titleError" class="field-error">{{ titleError }}</div>
       </div>
 
-      <div class="field-row">
-        <label class="toggle-label">
-          <span>終日</span>
-          <div :class="['toggle', { on: form.allDay }]" @click="form.allDay = !form.allDay">
-            <div class="toggle-knob"></div>
-          </div>
-        </label>
-      </div>
-      <div class="field">
-        <label>開始日</label>
-        <input v-model="form.date" type="date" @change="onStartDateChange" />
-      </div>
-      <template v-if="!form.allDay">
-      <div class="field">
-      　 <label>開始時刻</label>
-        <TimePicker :modelValue="form.startTime" @update:modelValue="onStartTimeChange" />
-      </div>
-      </template>
-      <div class="field">
-        <label>終了日</label>
-        <input v-model="form.endDate" type="date" :min="form.date" />
-      </div>
-      <template v-if="!form.allDay">
+      <!-- 通常モード（複数日モードでない時） -->
+      <template v-if="!form.multiMode">
+        <div class="field-row">
+          <label class="toggle-label">
+            <span>終日</span>
+            <div :class="['toggle', { on: form.allDay }]" @click="form.allDay = !form.allDay">
+              <div class="toggle-knob"></div>
+            </div>
+          </label>
+        </div>
         <div class="field">
-          <label>終了時刻</label>
-          <TimePicker
-            :modelValue="form.endTime"
-            :minTime="form.date === form.endDate ? form.startTime : undefined"
-            @update:modelValue="onEndTimeChange"
-          />
-          <div v-if="endTimeError" class="field-error">{{ endTimeError }}</div>
+          <label>開始日</label>
+          <input v-model="form.date" type="date" @change="onStartDateChange" />
+        </div>
+        <template v-if="!form.allDay">
+          <div class="field">
+            <label>開始時刻</label>
+            <TimePicker :modelValue="form.startTime" @update:modelValue="onStartTimeChange" />
+          </div>
+        </template>
+        <div class="field">
+          <label>終了日</label>
+          <input v-model="form.endDate" type="date" :min="form.date" />
+        </div>
+        <template v-if="!form.allDay">
+          <div class="field">
+            <label>終了時刻</label>
+            <TimePicker
+              :modelValue="form.endTime"
+              :minTime="form.date === form.endDate ? form.startTime : undefined"
+              @update:modelValue="onEndTimeChange"
+            />
+            <div v-if="endTimeError" class="field-error">{{ endTimeError }}</div>
+          </div>
+        </template>
+      </template>
+
+      <!-- 複数日選択 -->
+      <div class="field">
+        <MultiDatePicker
+          v-model="form.multiDates"
+          :disabled="form.date !== (form.endDate || form.date)"
+        />
+      </div>
+
+      <!-- 複数日モード -->
+      <template v-if="form.multiMode">
+        <div class="field">
+          <label>日付を選択（複数可）</label>
+          <MultiDatePicker v-model="form.multiDates" />
         </div>
       </template>
       <div class="field">
@@ -79,6 +98,7 @@
 <script setup>
 import { groups, COLORS } from '../stores/calendar'
 import TimePicker from './TimePicker.vue'
+import MultiDatePicker from './MultiDatePicker.vue'
 
 import { ref, reactive, watch, onMounted, nextTick } from 'vue'
 
@@ -97,7 +117,7 @@ const props = defineProps({
   defaultGroupId: String,
   user: Object
 })
-const emit = defineEmits(['close', 'save', 'delete'])
+const emit = defineEmits(['close', 'save', 'save-multi', 'delete'])
 
 const isOwner = props.event?.ownerId === props.user?.uid
 
@@ -110,7 +130,8 @@ const form = reactive({
   endTime: '09:00',
   groupId: props.defaultGroupId || '',
   colorIdx: 0,
-  memo: ''
+  memo: '',
+  multiDates: []
 })
 
 watch(() => props.event, ev => {
@@ -124,6 +145,8 @@ watch(() => props.event, ev => {
     form.groupId = ev.groupId || ''
     form.colorIdx = ev.colorIdx ?? 0
     form.memo = ev.memo || ''
+    form.multiMode = ev.multiMode ?? false
+    form.multiDates = ev.multiDates || []
   }
 }, { immediate: true })
 
@@ -131,6 +154,10 @@ function submit() {
   titleError.value = ''
   if (!form.title) {
     titleError.value = 'タイトルを入力してください'
+    return
+  }
+  if (form.multiDates.length > 0) {
+    emit('save-multi', { ...form })
     return
   }
   if (!form.date) return
