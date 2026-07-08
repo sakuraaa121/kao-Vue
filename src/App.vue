@@ -164,7 +164,8 @@ import { saveUserProfile } from './firebase'
 import {
   subscribeData, unsubscribeData,
   addEvent, updateEvent, deleteEvent, addGroup, deleteGroup,
-  dateStr, COLORS, groups, events, selectedGroupId, favoriteGroupId
+  dateStr, COLORS, groups, events, selectedGroupId, favoriteGroupId,
+  generateRecurringDates
 } from './stores/calendar'
 
 onAuthStateChanged(auth, u => {
@@ -280,15 +281,77 @@ function openSettings() {
 }
 
 async function saveEvent(form) {
-  console.log('saveEvent called:', form)
   try {
     if (form.id) {
-      await updateEvent(form.id, form, user.value.uid)
+      if (form.recurrenceId && form.recurrence?.freq !== 'none') {
+        // 繰り返しあり：全件更新（増減対応）
+        const targets = events.value
+          .filter(e => e.recurrenceId === form.recurrenceId)
+          .sort((a, b) => a.date.localeCompare(b.date))
+
+        // 繰り返しの開始日は最初のイベントの日付で固定
+        const startDate = targets[0].date
+        const newDates = generateRecurringDates(startDate, form.recurrence)
+
+        // 新しい日程数より多い既存イベントを削除
+        if (targets.length > newDates.length) {
+          const toDelete = targets.slice(newDates.length)
+          for (const ev of toDelete) {
+            await deleteEvent(ev.id)
+          }
+        }
+
+        // 既存イベントを新しい日程で更新、足りない分は追加
+        for (let i = 0; i < newDates.length; i++) {
+          if (i < targets.length) {
+            await updateEvent(targets[i].id, { ...form, date: newDates[i], endDate: newDates[i] }, user.value.uid)
+          } else {
+            await addEvent({ ...form, date: newDates[i], endDate: newDates[i], recurrenceId: form.recurrenceId }, user.value.uid)
+          }
+        }
+        showToast('繰り返しイベントをすべて更新しました')
+
+      } else if (form.recurrenceId && form.recurrence?.freq === 'none') {
+        // 繰り返しリセット：他の繰り返しイベントを削除し、このイベントのみ更新
+        const targets = events.value.filter(e => e.recurrenceId === form.recurrenceId && e.id !== form.id)
+        for (const ev of targets) {
+          await deleteEvent(ev.id)
+        }
+        await updateEvent(form.id, { ...form, recurrenceId: null }, user.value.uid)
+        showToast('繰り返しを解除しました')
+
+      } else if (!form.recurrenceId && form.recurrence?.freq !== 'none') {
+        // 繰り返しなし→あり：既存イベントを削除して繰り返しイベントを新規作成
+        await deleteEvent(form.id)
+        const recDates = generateRecurringDates(form.date, form.recurrence)
+        const recurrenceId = Math.random().toString(36).slice(2)
+        for (const date of recDates) {
+          await addEvent({ ...form, id: null, date, endDate: date, recurrenceId }, user.value.uid)
+        }
+        showToast(`${recDates.length}件の繰り返しイベントを追加しました`)
+
+      } else {
+        // 通常更新
+        await updateEvent(form.id, form, user.value.uid)
+        showToast('更新しました')
+      }
+
     } else {
-      await addEvent(form, user.value.uid)
+      const recDates = form.recurrence?.freq !== 'none'
+        ? generateRecurringDates(form.date, form.recurrence)
+        : []
+      if (recDates.length > 0) {
+        const recurrenceId = Math.random().toString(36).slice(2)
+        for (const date of recDates) {
+          await addEvent({ ...form, date, endDate: date, recurrenceId }, user.value.uid)
+        }
+        showToast(`${recDates.length}件の繰り返しイベントを追加しました`)
+      } else {
+        await addEvent(form, user.value.uid)
+        showToast('イベントを追加しました')
+      }
     }
     showEventModal.value = false
-    showToast(form.id ? '更新しました' : 'イベントを追加しました')
   } catch (e) {
     console.error('saveEvent error:', e)
     showToast('保存に失敗しました: ' + e.message)
@@ -296,13 +359,30 @@ async function saveEvent(form) {
 }
 
 async function deleteEventHandler(id) {
-  if (!confirm('このイベントを削除しますか？')) return
-  try {
-    await deleteEvent(id)
-    showEventModal.value = false
-    showToast('削除しました')
-  } catch (e) {
-    showToast('削除に失敗しました')
+  const ev = events.value.find(e => e.id === id)
+  const isRecurring = ev?.recurrenceId
+
+  if (isRecurring) {
+    if (!confirm('繰り返しイベントをすべて削除しますか？')) return
+    try {
+      const targets = events.value.filter(e => e.recurrenceId === ev.recurrenceId)
+      for (const t of targets) {
+        await deleteEvent(t.id)
+      }
+      showEventModal.value = false
+      showToast('繰り返しイベントをすべて削除しました')
+    } catch (e) {
+      showToast('削除に失敗しました')
+    }
+  } else {
+    if (!confirm('このイベントを削除しますか？')) return
+    try {
+      await deleteEvent(id)
+      showEventModal.value = false
+      showToast('削除しました')
+    } catch (e) {
+      showToast('削除に失敗しました')
+    }
   }
 }
 

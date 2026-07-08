@@ -3,14 +3,15 @@
     <!-- フィルターバー -->
     <div class="filter-bar">
       <button
-        :class="['chip', selectedGroupId === null ? 'active' : '']"
+        class="chip"
+        :style="selectedGroupId === null ? { background: '#888', color: '#fff', borderColor: 'transparent' } : { color: '#666', borderColor: '#ccc' }"
         @click="selectedGroupId = null"
       >すべて</button>
       <button
         v-for="g in groups"
         :key="g.id"
-        :class="['chip', selectedGroupId === g.id ? 'active' : '']"
-        :style="selectedGroupId === g.id ? { background: COLORS[g.colorIdx||0].dot, color: '#fff', borderColor: 'transparent' } : { borderColor: COLORS[g.colorIdx||0].dot, color: COLORS[g.colorIdx||0].text }"
+        class="chip"
+        :style="selectedGroupId === g.id ? { background: COLORS[g.colorIdx||0].dot, color: '#fff', borderColor: 'transparent' } : { borderColor: COLORS[g.colorIdx||0].dot, color: COLORS[g.colorIdx||0].dot }"
         @click="selectedGroupId = g.id"
       >{{ g.name }}</button>
     </div>
@@ -80,15 +81,15 @@ function dayEvents(date) {
 }
 
 function groupColor(ev) {
-  return COLORS[ev.colorIdx ?? ev.colorIdx ?? 0] || COLORS[0]
+  return COLORS[ev.colorIdx ?? 0] || COLORS[0]
 }
 </script>
 
 <style scoped>
 .cal-grid { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .filter-bar { display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid #e5e5e3; overflow-x: auto; background: #fff; }
-.chip { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid #ccc; background: none; color: #666; white-space: nowrap; }
-.chip.active { background: #888; color: #fff; border-color: transparent; }
+.chip { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid #ccc; background: none; white-space: nowrap; transition: opacity .1s; }
+.chip:hover { opacity: .8; }
 .dow-header { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid #e5e5e3; }
 .dow-header span { font-size: 11px; color: #aaa; text-align: center; padding: 5px 0; }
 .month-body { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow-y: auto; }

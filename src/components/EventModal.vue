@@ -55,6 +55,10 @@
         />
       </div>
 
+      <div class="field">
+        <RecurrencePicker v-model="form.recurrence" />
+      </div>
+
       <!-- 複数日モード -->
       <template v-if="form.multiMode">
         <div class="field">
@@ -99,6 +103,7 @@
 import { groups, COLORS } from '../stores/calendar'
 import TimePicker from './TimePicker.vue'
 import MultiDatePicker from './MultiDatePicker.vue'
+import RecurrencePicker from './RecurrencePicker.vue'
 
 import { ref, reactive, watch, onMounted, nextTick } from 'vue'
 
@@ -131,7 +136,9 @@ const form = reactive({
   groupId: props.defaultGroupId || '',
   colorIdx: 0,
   memo: '',
-  multiDates: []
+  multiDates: [],
+  recurrence: { freq: 'none', endType: 'forever', count: 1, untilDate: '' },
+  recurrenceId: null // 繰り返しグループID
 })
 
 watch(() => props.event, ev => {
@@ -147,6 +154,8 @@ watch(() => props.event, ev => {
     form.memo = ev.memo || ''
     form.multiMode = ev.multiMode ?? false
     form.multiDates = ev.multiDates || []
+    form.recurrence = ev.recurrence || { freq: 'none', endType: 'forever', count: 1, untilDate: '' }
+    form.recurrenceId = ev.recurrenceId || null
   }
 }, { immediate: true })
 

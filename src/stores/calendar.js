@@ -32,7 +32,7 @@ export const filteredEvents = computed(() => {
 
 // ── Colors ──
 export const COLORS = [
-  { bg: '#E6F1FB', text: '#185FA5', dot: '#378ADD' },
+  { bg: '#1a56a4', text: '#ffffff', dot: '#1a56a4' },
   { bg: '#E1F5EE', text: '#0F6E56', dot: '#1D9E75' },
   { bg: '#FAEEDA', text: '#854F0B', dot: '#BA7517' },
   { bg: '#FAECE7', text: '#993C1D', dot: '#D85A30' },
@@ -112,6 +112,28 @@ export async function addGroup(data, uid) {
 
 export async function deleteGroup(id) {
   await deleteDoc(doc(db, 'groups', id))
+}
+
+export function generateRecurringDates(startDate, recurrence) {
+  const dates = []
+  const { freq, endType, count, untilDate } = recurrence
+  if (freq === 'none') return dates
+
+  let cur = new Date(startDate)
+  const maxCount = endType === 'count' ? count : 365
+  const untilD = endType === 'until' && untilDate ? new Date(untilDate) : null
+
+  for (let i = 0; i < maxCount; i++) {
+    if (i > 0) {
+      if (freq === 'daily') cur.setDate(cur.getDate() + 1)
+      else if (freq === 'weekly') cur.setDate(cur.getDate() + 7)
+      else if (freq === 'monthly') cur.setMonth(cur.getMonth() + 1)
+      else if (freq === 'yearly') cur.setFullYear(cur.getFullYear() + 1)
+    }
+    if (untilD && cur > untilD) break
+    dates.push(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`)
+  }
+  return dates
 }
 
 // ── Helpers ──
